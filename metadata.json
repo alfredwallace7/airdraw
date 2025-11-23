@@ -1,0 +1,8 @@
+{
+  "name": "Gemini Air Draw",
+  "description": "A futuristic air-drawing application powered by Gemini Multimodal Live API. Use your hand gestures to draw on the screen in real-time.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

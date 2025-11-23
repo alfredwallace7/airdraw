@@ -1,0 +1,402 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Palette, Trash2, Camera as CameraIcon, Info } from 'lucide-react';
+import { HandTrackingService } from './services/mediaPipe';
+import CanvasLayer from './components/CanvasLayer';
+import Toolbar, { COLORS, SIZES } from './components/Toolbar';
+import { DrawPath, Point } from './types';
+import { Results } from '@mediapipe/hands';
+
+// Linear interpolation for smoothing
+const lerp = (start: number, end: number, factor: number) => {
+  return start + (end - start) * factor;
+};
+
+const App: React.FC = () => {
+  // --- State ---
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cursorPos, setCursorPos] = useState<Point | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [paths, setPaths] = useState<DrawPath[]>([]);
+  const [currentPath, setCurrentPath] = useState<DrawPath | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
+  // Tool State
+  const [activeTool, setActiveTool] = useState<'pencil' | 'eraser'>('pencil');
+  const [brushColor, setBrushColor] = useState(COLORS[2]); // Default Yellow
+
+  const [pencilSize, setPencilSize] = useState(SIZES[2]); // Default 3rd size (8px)
+  const [eraserSize, setEraserSize] = useState(SIZES[7]); // Default large size (48px)
+
+  const brushSize = activeTool === 'pencil' ? pencilSize : eraserSize;
+
+  const handleSizeChange = (newSize: number) => {
+    if (activeTool === 'pencil') {
+      setPencilSize(newSize);
+    } else {
+      setEraserSize(newSize);
+    }
+  };
+
+  const [videoOpacity, setVideoOpacity] = useState(0.25); // Default 25% opacity
+
+  // --- Refs ---
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const handTrackingService = useRef<HandTrackingService | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Smoothing Refs
+  const lastCursorPos = useRef<Point | null>(null);
+  const clickCooldown = useRef(false);
+
+  // Gesture Stabilization - Prevent flickering
+  const gestureHistory = useRef<boolean[]>([]);
+  const GESTURE_HISTORY_SIZE = 3; // Number of frames to average
+
+  // --- Effects ---
+
+  // Handle Resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Instructions State
+  const [showHelp, setShowHelp] = useState(true);
+
+  // Refs for State Access in Callbacks
+  const dimensionsRef = useRef(dimensions);
+  const showHelpRef = useRef(showHelp);
+  const frameCountRef = useRef(0);
+
+  useEffect(() => { dimensionsRef.current = dimensions; }, [dimensions]);
+  useEffect(() => { showHelpRef.current = showHelp; }, [showHelp]);
+
+  // Process MediaPipe Results
+  const onResults = useCallback((results: Results) => {
+    const dims = dimensionsRef.current;
+    const isHelpVisible = showHelpRef.current;
+
+    if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+      setCursorPos(null);
+      setIsDrawing(false);
+      if (frameCountRef.current % 10 === 0) setDebugInfo('No hand detected');
+      frameCountRef.current++;
+      lastCursorPos.current = null;
+      gestureHistory.current = []; // Reset gesture history
+      return;
+    }
+
+    const landmarks = results.multiHandLandmarks[0];
+
+    // Index Finger Tip (8)
+    const indexTip = landmarks[8];
+
+    // Check if other fingers are folded (Tip Y > PIP Y)
+    // Note: In MediaPipe, Y increases downwards. So Tip > PIP means finger is folded down.
+    const middleFolded = landmarks[12].y > landmarks[10].y;
+    const ringFolded = landmarks[16].y > landmarks[14].y;
+    const pinkyFolded = landmarks[20].y > landmarks[18].y;
+
+    // Raw gesture detection
+    const rawDrawingGesture = middleFolded && ringFolded && pinkyFolded;
+
+    // Stabilize gesture using history buffer
+    gestureHistory.current.push(rawDrawingGesture);
+    if (gestureHistory.current.length > GESTURE_HISTORY_SIZE) {
+      gestureHistory.current.shift();
+    }
+
+    // Consider it a drawing gesture if majority of recent frames detected it
+    const drawingFrames = gestureHistory.current.filter(g => g).length;
+    const isDrawingGesture = drawingFrames >= Math.ceil(GESTURE_HISTORY_SIZE / 2);
+
+    // Map coordinates to screen with Aspect Ratio Correction (object-cover)
+    let screenX: number;
+    let screenY: number;
+
+    if (videoRef.current && videoRef.current.videoWidth) {
+      const videoW = videoRef.current.videoWidth;
+      const videoH = videoRef.current.videoHeight;
+      const screenW = dims.width;
+      const screenH = dims.height;
+
+      const videoRatio = videoW / videoH;
+      const screenRatio = screenW / screenH;
+
+      let scale, scaledW, scaledH, offsetX, offsetY;
+
+      if (screenRatio > videoRatio) {
+        // Screen is wider than video (Video is cropped top/bottom)
+        scale = screenW / videoW;
+        scaledW = screenW;
+        scaledH = videoH * scale;
+        offsetX = 0;
+        offsetY = (scaledH - screenH) / 2;
+      } else {
+        // Screen is taller than video (Video is cropped left/right)
+        scale = screenH / videoH;
+        scaledW = videoW * scale;
+        scaledH = screenH;
+        offsetX = (scaledW - screenW) / 2;
+        offsetY = 0;
+      }
+
+      // 1. Map normalized (0-1) to scaled video dimensions
+      const rawX = indexTip.x * scaledW;
+      const rawY = indexTip.y * scaledH;
+
+      // 2. Apply crop offset to get screen coordinates
+      // Note: We subtract offset because the video is centered
+      let screenX_uncorrected = rawX - offsetX;
+      let screenY_uncorrected = rawY - offsetY;
+
+      // 3. Handle Mirroring (Flip X)
+      // Since the video is mirrored with CSS transform: scale-x-[-1], 
+      // visual left is actually right.
+      // We want the cursor to follow the visual finger.
+      // If we move hand to visual right (screenW), indexTip.x (camera) goes to 0 (camera left).
+      // So indexTip.x=0 => rawX=0 => screenX = -offsetX.
+      // We need to mirror this relative to the screen width.
+
+      screenX = dims.width - screenX_uncorrected;
+      screenY = screenY_uncorrected;
+
+    } else {
+      // Fallback if video not ready
+      screenX = dims.width - (indexTip.x * dims.width);
+      screenY = indexTip.y * dims.height;
+    }
+
+    // Apply Smoothing (Lerp)
+    if (lastCursorPos.current) {
+      const dx = screenX - lastCursorPos.current.x;
+      const dy = screenY - lastCursorPos.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Dynamic smoothing:
+      // Fast movement -> Higher factor (more responsive)
+      // Slow movement -> Lower factor (more smooth)
+      // Base 0.2, max 0.8. Scaling factor 0.01
+      const smoothingFactor = Math.min(0.8, Math.max(0.2, 0.2 + (distance * 0.01)));
+
+      screenX = lerp(lastCursorPos.current.x, screenX, smoothingFactor);
+      screenY = lerp(lastCursorPos.current.y, screenY, smoothingFactor);
+    }
+
+    const newPos = { x: screenX, y: screenY };
+    lastCursorPos.current = newPos;
+    setCursorPos(newPos);
+
+    // --- UI Interaction Logic ---
+    // Check if hovering over a clickable element
+    const element = document.elementFromPoint(screenX, screenY);
+    const isClickable = element?.getAttribute('data-clickable') === 'true';
+
+    // Check if hovering over instructions (Bottom Right Corner)
+    // Simple bounding box check for the bottom right area
+    const instructionsWidth = 320; // Approx width of the instructions panel
+    const instructionsHeight = 200; // Approx height
+    const isOverInstructions =
+      screenX > dims.width - instructionsWidth &&
+      screenY > dims.height - instructionsHeight;
+
+    // If hovering over instructions and they are visible, hide them
+    if (isOverInstructions && isHelpVisible) {
+      setShowHelp(false);
+    }
+
+    if (isClickable) {
+      // If performing "Draw" gesture over a button, trigger click
+      if (isDrawingGesture && !clickCooldown.current) {
+        (element as HTMLElement).click();
+
+        // Activate cooldown to prevent rapid-fire clicks
+        clickCooldown.current = true;
+        setTimeout(() => { clickCooldown.current = false; }, 500);
+      }
+
+      // Don't draw on canvas if interacting with UI
+      setIsDrawing(false);
+      if (frameCountRef.current % 10 === 0) setDebugInfo('Interacting with UI');
+    } else {
+      // Normal Drawing
+      setIsDrawing(isDrawingGesture);
+      if (frameCountRef.current % 10 === 0) {
+        setDebugInfo(`X: ${screenX.toFixed(0)} Y: ${screenY.toFixed(0)} | ${isDrawingGesture ? 'DRAWING' : 'HOVER'}`);
+      }
+    }
+    frameCountRef.current++;
+
+  }, []);
+
+  // Initialize Camera & Tracking
+  const startCamera = useCallback(async () => {
+    if (videoRef.current && !handTrackingService.current) {
+      handTrackingService.current = new HandTrackingService(onResults);
+      handTrackingService.current.start(videoRef.current);
+      setIsCameraActive(true);
+    }
+  }, [onResults]);
+
+  // Stop Camera
+  const stopCamera = useCallback(() => {
+    if (handTrackingService.current) {
+      handTrackingService.current.stop();
+      handTrackingService.current = null;
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+    setCursorPos(null);
+    setIsDrawing(false);
+  }, []);
+
+  // Handle Drawing Logic based on State
+  useEffect(() => {
+    if (isDrawing && cursorPos) {
+      setCurrentPath(prev => {
+        if (!prev) {
+          // Start new path
+          return {
+            points: [cursorPos],
+            color: activeTool === 'eraser' ? 'eraser' : brushColor,
+            width: brushSize
+          };
+        } else {
+          // Add to existing path
+          return {
+            ...prev,
+            points: [...prev.points, cursorPos]
+          };
+        }
+      });
+    } else {
+      // If we were drawing and just stopped
+      setCurrentPath(prev => {
+        if (prev) {
+          setPaths(old => [...old, { ...prev, color: activeTool === 'eraser' ? 'eraser' : brushColor }]); // Commit path
+        }
+        return null;
+      });
+    }
+  }, [isDrawing, cursorPos, activeTool, brushColor, brushSize]);
+
+  const clearCanvas = () => {
+    setPaths([]);
+    setCurrentPath(null);
+  };
+
+  return (
+    <div className="relative w-screen h-screen flex flex-col items-center justify-center bg-slate-900 overflow-hidden" ref={containerRef}>
+
+      {/* Background Video Feed (Mirrored) */}
+      <video
+        ref={videoRef}
+        playsInline
+        className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-300 ${isCameraActive ? 'block' : 'hidden'}`}
+        style={{ opacity: videoOpacity }}
+      />
+
+      {/* Drawing Overlay */}
+      <CanvasLayer
+        paths={paths}
+        currentPath={currentPath}
+        cursorPos={cursorPos}
+        isDrawing={isDrawing}
+        width={dimensions.width}
+        height={dimensions.height}
+      />
+
+      {/* Toolbar (Only visible when camera active) */}
+      {isCameraActive && (
+        <Toolbar
+          activeTool={activeTool}
+          brushColor={brushColor}
+          brushSize={brushSize}
+          videoOpacity={videoOpacity}
+          showHelp={showHelp}
+          onToolChange={setActiveTool}
+          onColorChange={setBrushColor}
+          onSizeChange={handleSizeChange}
+          onOpacityChange={setVideoOpacity}
+          onClear={clearCanvas}
+          onToggleHelp={() => setShowHelp(prev => !prev)}
+        />
+      )}
+
+      {/* Main HUD */}
+      <div className="absolute top-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-md p-2 rounded-full border border-slate-700 shadow-2xl z-50 transition-all select-none">
+        <div className="flex items-center gap-2 px-3 border-r border-slate-700">
+          <span className="text-sky-400 font-bold tracking-wider flex items-center gap-2">
+            <Palette size={18} /> AirDraw
+          </span>
+        </div>
+
+        {!isCameraActive ? (
+          <button
+            onClick={startCamera}
+            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg hover:shadow-slate-500/25 border border-slate-600"
+          >
+            <CameraIcon size={18} />
+            Enable Camera
+          </button>
+        ) : (
+          <button
+            onClick={stopCamera}
+            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-lg"
+          >
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            Stop Camera
+          </button>
+        )}
+
+        <button
+          data-clickable="true"
+          onClick={clearCanvas}
+          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
+          title="Clear Canvas"
+        >
+          <Trash2 size={20} />
+        </button>
+      </div>
+
+      {/* Status Indicators */}
+      <div className="absolute bottom-6 left-6 flex flex-col gap-2 z-40 select-none">
+        {debugInfo && (
+          <div className="bg-slate-900/60 backdrop-blur-sm p-2 rounded-xl border border-slate-700 text-xs font-mono text-cyan-400">
+            {debugInfo}
+          </div>
+        )}
+      </div>
+
+      {/* Instructions */}
+      <div className={`absolute bottom-6 right-6 max-w-xs bg-slate-900/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700 text-sm text-slate-300 z-40 transition-opacity duration-300 select-none ${showHelp ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <h3 className="flex items-center gap-2 font-semibold text-white mb-2">
+          <Info size={16} /> How to Draw
+        </h3>
+        <ul className="space-y-2 list-disc pl-4 text-xs">
+          <li>Hold your hand up to the camera.</li>
+          <li><strong>Open Hand:</strong> Moves the cursor (Hover).</li>
+          <li><strong>Index Finger Only:</strong> Draws lines.</li>
+          <li><strong>Interact:</strong> "Draw" over buttons to click.</li>
+        </ul>
+      </div>
+
+    </div>
+  );
+};
+
+export default App;
