@@ -6,21 +6,30 @@
 
 ---
 
+## ☕ Support
+
+If you find AirDraw useful, consider buying me a coffee:
+
+[![Donate](https://img.shields.io/badge/SUPPORT%20AIRDRAW-5469d4?style=for-the-badge&logo=stripe&logoColor=white)](https://buy.stripe.com/28E4grgJZgjG8KycKh6Vq02)
+
 ## 🎯 Features
 
 ### ✌️ **Dual-Hand Drawing**
+
 - **Draw with BOTH hands simultaneously!** Each hand gets its own cursor and can draw independently
 - Perfect for symmetrical art, collaborative drawing, or just showing off
 - Hand 1: Blue cursor → Pink when drawing
 - Hand 2: Lime cursor → Orange when drawing
 
 ### 🎨 **Rich Drawing Tools**
+
 - **Pencil Tool** - Multiple brush sizes (2px - 64px) with pressure simulation
 - **Eraser Tool** - Real-time erasing with instant visual feedback
 - **10 Vibrant Colors** - From red to purple, including a crisp white
 - **Camera Opacity Control** - Blend your video feed from 0% to 100%
 
 ### 🚀 **Performance Optimized**
+
 - **60 FPS tracking** with MediaPipe Lite model
 - **Dynamic smoothing** - Faster movements = more responsive cursor
 - **Gesture stabilization** - No more jittery lines from shaky hands
@@ -28,11 +37,13 @@
 - **Real-time eraser feedback** - See what you're erasing as you erase it
 
 ### 🖐️ **Intuitive Gestures**
+
 - **Open hand** - Move cursor (hover mode)
 - **Index finger only** (others folded) - Draw/erase
 - **Hover over toolbar buttons** - Point and "draw" to click them!
 
 ### 🎭 **Smart UI**
+
 - Auto-hiding help panel when you hover over it
 - Animated toolbar with smooth transitions
 - Real-time hand count display
@@ -103,6 +114,7 @@ pnpm build
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to:
+
 - Report bugs
 - Suggest new features
 - Submit pull requests
