@@ -28,13 +28,13 @@ const App: React.FC = () => {
 
   const brushSize = activeTool === 'pencil' ? pencilSize : eraserSize;
 
-  const handleSizeChange = (newSize: number) => {
+  const handleSizeChange = useCallback((newSize: number) => {
     if (activeTool === 'pencil') {
       setPencilSize(newSize);
     } else {
       setEraserSize(newSize);
     }
-  };
+  }, [activeTool]);
 
   const [videoOpacity, setVideoOpacity] = useState(0.25); // Default 25% opacity
 
@@ -212,10 +212,14 @@ const App: React.FC = () => {
     }
   }, [isDrawingHands, cursorPositions, activeTool, brushColor, brushSize]);
 
-  const clearCanvas = () => {
+  const clearCanvas = useCallback(() => {
     setPaths([]);
     setCurrentPaths([null, null]);
-  };
+  }, []);
+
+  const handleToggleHelp = useCallback(() => {
+    setShowHelp(prev => !prev);
+  }, []);
 
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center bg-slate-900 overflow-hidden" ref={containerRef}>
@@ -251,7 +255,7 @@ const App: React.FC = () => {
           onSizeChange={handleSizeChange}
           onOpacityChange={setVideoOpacity}
           onClear={clearCanvas}
-          onToggleHelp={() => setShowHelp(prev => !prev)}
+          onToggleHelp={handleToggleHelp}
         />
       )}
 
