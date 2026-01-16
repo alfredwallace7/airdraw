@@ -11,19 +11,23 @@ interface CanvasLayerProps {
   height: number;
 }
 
-// Helper to convert stroke points to Path2D
-const getSvgPathFromStroke = (stroke: number[][]) => {
-  if (!stroke.length) return '';
-  const d = stroke.reduce(
-    (acc, [x0, y0], i, arr) => {
-      const [x1, y1] = arr[(i + 1) % arr.length];
-      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-      return acc;
-    },
-    ['M', ...stroke[0], 'Q']
-  );
-  d.push('Z');
-  return d.join(' ');
+// Helper to convert stroke points to Path2D directly
+// Optimized: avoids string manipulation and parsing overhead
+const getPath2DFromStroke = (stroke: number[][]): Path2D => {
+  const path = new Path2D();
+  if (!stroke.length) return path;
+
+  const [startX, startY] = stroke[0];
+  path.moveTo(startX, startY);
+
+  for (let i = 0; i < stroke.length; i++) {
+    const [x0, y0] = stroke[i];
+    const [x1, y1] = stroke[(i + 1) % stroke.length];
+    path.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+  }
+
+  path.closePath();
+  return path;
 };
 
 // Cursor colors for each hand
@@ -43,20 +47,28 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const staticCanvasRef = useRef<HTMLCanvasElement>(null);
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Cache for static paths to avoid re-computing strokes on every frame
+  // WeakMap ensures that if path objects are removed, cache is cleaned up
+  const pathCache = useRef(new WeakMap<DrawPath, Path2D>());
+
   // Helper to draw a path using perfect-freehand
   const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath) => {
     if (path.points.length < 2) return;
 
-    const stroke = getStroke(path.points, {
-      size: path.width,
-      thinning: 0.5,
-      smoothing: 0.5,
-      streamline: 0.5,
-      simulatePressure: true,
-    });
+    let p = pathCache.current.get(path);
 
-    const pathData = getSvgPathFromStroke(stroke);
-    const p = new Path2D(pathData);
+    if (!p) {
+      const stroke = getStroke(path.points, {
+        size: path.width,
+        thinning: 0.5,
+        smoothing: 0.5,
+        streamline: 0.5,
+        simulatePressure: true,
+      });
+
+      p = getPath2DFromStroke(stroke);
+      pathCache.current.set(path, p);
+    }
 
     ctx.fillStyle = path.color;
 
@@ -103,6 +115,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
     // Draw current active paths for all hands
     currentPaths.forEach((currentPath) => {
       if (currentPath) {
+        // Note: currentPaths change every frame (points added), so cache will miss.
+        // This is expected and fine for active drawing.
         renderPath(ctx, currentPath);
       }
     });

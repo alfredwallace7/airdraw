@@ -1,0 +1,3 @@
+## 2025-05-18 - Canvas Eraser Architecture
+**Learning:** The "eraser" feature in this canvas architecture forces a full redraw of all static paths on the active layer every frame to allow real-time erasing preview (using `destination-out`). This turns an $O(1)$ operation (drawing cursor) into an $O(N \times M)$ operation (calculating and drawing all N paths with M points each).
+**Action:** Implemented `Path2D` caching using `WeakMap` to store the geometry of static paths. This reduces the per-frame cost to $O(N)$ simple draws, removing the expensive stroke calculation and path construction from the render loop.
