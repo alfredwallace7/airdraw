@@ -95,9 +95,16 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
     // Check if any hand is using eraser
     const hasEraserPath = currentPaths.some(p => p && p.color === 'eraser');
 
-    // If erasing, redraw ALL paths first (static + active) so eraser can affect them in real-time
-    if (hasEraserPath) {
-      paths.forEach(path => renderPath(ctx, path));
+    // Performance Optimization:
+    // If erasing, we need to show the effect on existing paths. Instead of re-rendering all vector paths (O(N)),
+    // we copy the static canvas bitmap (O(1)) and apply the eraser stroke to it.
+    // We hide the static canvas during this to prevent seeing the original paths underneath.
+    if (staticCanvasRef.current) {
+      staticCanvasRef.current.style.opacity = hasEraserPath ? '0' : '1';
+    }
+
+    if (hasEraserPath && staticCanvasRef.current) {
+      ctx.drawImage(staticCanvasRef.current, 0, 0, width, height);
     }
 
     // Draw current active paths for all hands
