@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { getStroke } from 'perfect-freehand';
 import { DrawPath, Point } from '../types';
 
@@ -69,6 +69,9 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
     }
   };
 
+  // Check if any hand is using eraser (derived state for rendering optimizations)
+  const isErasing = currentPaths.some(p => p && p.color === 'eraser');
+
   // 1. Static Layer: Draws completed paths
   // Only re-renders when 'paths' or dimensions change
   useEffect(() => {
@@ -84,7 +87,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
   // 2. Active Layer: Draws current paths and cursors for all hands
   // Re-renders on every frame (cursor movement)
-  useEffect(() => {
+  // ⚡ Use useLayoutEffect to prevent flickering when hiding the static layer
+  useLayoutEffect(() => {
     const canvas = activeCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -92,12 +96,16 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
     ctx.clearRect(0, 0, width, height);
 
-    // Check if any hand is using eraser
-    const hasEraserPath = currentPaths.some(p => p && p.color === 'eraser');
-
-    // If erasing, redraw ALL paths first (static + active) so eraser can affect them in real-time
-    if (hasEraserPath) {
-      paths.forEach(path => renderPath(ctx, path));
+    // If erasing, redraw ALL paths first so eraser can affect them in real-time
+    if (isErasing) {
+      // ⚡ OPTIMIZATION: Copy static canvas bitmap (O(1)) instead of re-rendering all vector paths (O(N))
+      // This significantly improves performance when erasing in drawings with many strokes.
+      if (staticCanvasRef.current) {
+        ctx.drawImage(staticCanvasRef.current, 0, 0);
+      } else {
+        // Fallback (should normally not be reached if refs are set)
+        paths.forEach(path => renderPath(ctx, path));
+      }
     }
 
     // Draw current active paths for all hands
@@ -134,7 +142,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         ctx.stroke();
       }
     });
-  }, [paths, currentPaths, cursorPositions, isDrawingHands, width, height]);
+  }, [paths, currentPaths, cursorPositions, isDrawingHands, width, height, isErasing]);
 
   return (
     <>
@@ -144,6 +152,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         width={width}
         height={height}
         className="absolute top-0 left-0 w-full h-full pointer-events-none z-10"
+        style={{ opacity: isErasing ? 0 : 1 }} // Hide static layer when erasing to show active layer's composited view
       />
       {/* Active Layer */}
       <canvas
