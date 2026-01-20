@@ -3,13 +3,22 @@ import { Palette, Trash2, Camera as CameraIcon, Info } from 'lucide-react';
 import { HandTrackingService } from './services/mediaPipe';
 import CanvasLayer from './components/CanvasLayer';
 import Toolbar, { COLORS, SIZES } from './components/Toolbar';
-import { DrawPath, Point } from './types';
+import { DrawPath, Point, CameraQuality } from './types';
 import { Results } from '@mediapipe/hands';
 import { processMultipleHands } from './utils/handProcessor';
+import { Settings, X as CloseIcon } from 'lucide-react';
+
+const CAMERA_QUALITIES: CameraQuality[] = [
+  { id: '360p', label: '360p (Low)', width: 640, height: 360 },
+  { id: '720p', label: '720p (Medium)', width: 1280, height: 720 },
+  { id: '1080p', label: '1080p (High)', width: 1920, height: 1080 },
+];
 
 const App: React.FC = () => {
   // --- State ---
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraQuality, setCameraQuality] = useState<CameraQuality>(CAMERA_QUALITIES[1]); // Default 720p
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Multi-hand state (Index 0 = Hand 1, Index 1 = Hand 2)
   const [cursorPositions, setCursorPositions] = useState<(Point | null)[]>([null, null]);
@@ -199,10 +208,29 @@ const App: React.FC = () => {
   const startCamera = useCallback(async () => {
     if (videoRef.current && !handTrackingService.current) {
       handTrackingService.current = new HandTrackingService(onResults);
-      handTrackingService.current.start(videoRef.current);
+      handTrackingService.current.start(videoRef.current, cameraQuality.width, cameraQuality.height);
       setIsCameraActive(true);
     }
-  }, [onResults]);
+  }, [onResults, cameraQuality]);
+
+  const handleQualityChange = useCallback(async (newQuality: CameraQuality) => {
+    setCameraQuality(newQuality);
+    if (isCameraActive) {
+      // Restart camera with new constraints
+      if (handTrackingService.current) {
+        handTrackingService.current.stop();
+        handTrackingService.current = null;
+      }
+      
+      // Short delay to ensure hardware is released
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      if (videoRef.current) {
+        handTrackingService.current = new HandTrackingService(onResults);
+        handTrackingService.current.start(videoRef.current, newQuality.width, newQuality.height);
+      }
+    }
+  }, [isCameraActive, onResults]);
 
   // Stop Camera
   const stopCamera = useCallback(() => {
@@ -270,10 +298,19 @@ const App: React.FC = () => {
 
       {/* Main HUD */}
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-slate-900/80 backdrop-blur-md p-2 rounded-full border border-slate-700 shadow-2xl z-50 transition-all select-none">
-        <div className="flex items-center gap-2 px-3 border-r border-slate-700">
-          <span className="text-sky-400 font-bold tracking-wider flex items-center gap-2">
-            <Palette size={18} /> AirDraw
-          </span>
+        <div className="flex items-center gap-3 px-3 border-r border-slate-700">
+          <div className="flex items-center gap-2">
+            <span className="text-sky-400 font-bold tracking-wider flex items-center gap-2">
+              <Palette size={18} /> AirDraw
+            </span>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-1 text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-slate-800/50 cursor-pointer"
+              title="Settings (Mouse Only)"
+            >
+              <Settings size={14} />
+            </button>
+          </div>
         </div>
 
         {!isCameraActive ? (
@@ -326,6 +363,69 @@ const App: React.FC = () => {
           <li><strong>Interact:</strong> "Draw" over buttons to click.</li>
         </ul>
       </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-800">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Settings className="text-sky-400" size={24} /> Settings
+              </h2>
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-400 uppercase tracking-wider">
+                  Camera Quality
+                </label>
+                <div className="grid gap-2">
+                  {CAMERA_QUALITIES.map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => handleQualityChange(q)}
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                        cameraQuality.id === q.id
+                          ? 'bg-sky-500/10 border-sky-500/50 text-sky-400 ring-1 ring-sky-500/50'
+                          : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="text-left">
+                        <div className="font-semibold">{q.label}</div>
+                        <div className="text-xs opacity-60">{q.width} × {q.height}</div>
+                      </div>
+                      {cameraQuality.id === q.id && (
+                        <div className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Higher quality requires more processing power and may affect performance.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 bg-slate-950/50 flex justify-end">
+              <button
+                onClick={() => setIsSettingsOpen(false)}
+                className="px-6 py-2 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-full shadow-lg shadow-sky-500/20 transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

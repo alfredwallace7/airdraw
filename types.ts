@@ -21,3 +21,10 @@ export interface ToolResponse {
   y: number;
   isDrawing: boolean;
 }
+
+export interface CameraQuality {
+  id: string;
+  label: string;
+  width: number;
+  height: number;
+}
