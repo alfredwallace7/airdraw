@@ -8,7 +8,7 @@
 
 ## ☕ Support
 
-If you find AirDraw useful, consider buying me a coffee:
+If you find AirDraw fun, consider buying me a coffee:
 
 [![Donate](https://img.shields.io/badge/SUPPORT%20AIRDRAW-5469d4?style=for-the-badge&logo=stripe&logoColor=white)](https://buy.stripe.com/28E4grgJZgjG8KycKh6Vq02)
 
