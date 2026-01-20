@@ -77,8 +77,17 @@ const App: React.FC = () => {
   const showHelpRef = useRef(showHelp);
   const frameCountRef = useRef(0);
 
+  const activeToolRef = useRef(activeTool);
+  const brushColorRef = useRef(brushColor);
+  const brushSizeRef = useRef(brushSize);
+  const currentPathsRef = useRef<(DrawPath | null)[]>([null, null]);
+
   useEffect(() => { dimensionsRef.current = dimensions; }, [dimensions]);
   useEffect(() => { showHelpRef.current = showHelp; }, [showHelp]);
+
+  useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+  useEffect(() => { brushColorRef.current = brushColor; }, [brushColor]);
+  useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
 
   // Process MediaPipe Results
   const onResults = useCallback((results: Results) => {
@@ -88,6 +97,11 @@ const App: React.FC = () => {
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
       setCursorPositions([null, null]);
       setIsDrawingHands([false, false]);
+
+      // Clear current paths if hands are lost during drawing?
+      // Or just keep them suspended? Existing logic cleared tracking but not paths explicitly.
+      // Let's keep existing behavior but reset histories.
+
       if (frameCountRef.current % 10 === 0) setDebugInfo('No hands detected');
       frameCountRef.current++;
       lastCursorPositions.current = [null, null];
@@ -104,6 +118,44 @@ const App: React.FC = () => {
       gestureHistories,
       GESTURE_HISTORY_SIZE
     );
+
+    // --- Drawing Logic Optimized (Moved from useEffect to reduce re-renders) ---
+    const newCurrentPaths = [...currentPathsRef.current];
+    let pathsUpdated = false;
+
+    for (let i = 0; i < 2; i++) {
+        const isDrawing = handResults.isDrawing[i];
+        const pos = handResults.positions[i];
+        const existingPath = newCurrentPaths[i];
+
+        if (isDrawing && pos) {
+            if (!existingPath) {
+                // Start new path
+                newCurrentPaths[i] = {
+                    points: [pos],
+                    color: activeToolRef.current === 'eraser' ? 'eraser' : brushColorRef.current,
+                    width: brushSizeRef.current
+                };
+            } else {
+                // Extend existing path - Mutating for performance (avoid O(N) copy)
+                // This is safe because we immediately trigger a state update with a new array reference
+                existingPath.points.push(pos);
+            }
+            pathsUpdated = true;
+        } else if (existingPath) {
+             // Stop drawing -> Commit
+             // We must copy the path here to ensure the committed path is immutable
+             setPaths(prev => [...prev, { ...existingPath, points: [...existingPath.points] }]);
+             newCurrentPaths[i] = null;
+             pathsUpdated = true;
+        }
+    }
+
+    if (pathsUpdated) {
+        currentPathsRef.current = newCurrentPaths;
+        setCurrentPaths([...newCurrentPaths]); // Trigger render with new array ref
+    }
+    // -------------------------------------------------------------------------
 
     setCursorPositions(handResults.positions);
     setIsDrawingHands(handResults.isDrawing);
@@ -168,49 +220,6 @@ const App: React.FC = () => {
     setIsDrawingHands([false, false]);
   }, []);
 
-  // Handle Drawing Logic for Multiple Hands
-  useEffect(() => {
-    // Process each hand independently
-    for (let handIndex = 0; handIndex < 2; handIndex++) {
-      const isDrawing = isDrawingHands[handIndex];
-      const cursorPos = cursorPositions[handIndex];
-
-      if (isDrawing && cursorPos) {
-        setCurrentPaths(prev => {
-          const newPaths = [...prev];
-          if (!newPaths[handIndex]) {
-            // Start new path for this hand
-            newPaths[handIndex] = {
-              points: [cursorPos],
-              color: activeTool === 'eraser' ? 'eraser' : brushColor,
-              width: brushSize
-            };
-          } else {
-            // Add to existing path
-            newPaths[handIndex] = {
-              ...newPaths[handIndex]!,
-              points: [...newPaths[handIndex]!.points, cursorPos]
-            };
-          }
-          return newPaths;
-        });
-      } else {
-        // If we were drawing and just stopped, commit the path
-        setCurrentPaths(prev => {
-          if (prev[handIndex]) {
-            setPaths(old => [...old, {
-              ...prev[handIndex]!,
-              color: activeTool === 'eraser' ? 'eraser' : brushColor
-            }]);
-            const newPaths = [...prev];
-            newPaths[handIndex] = null;
-            return newPaths;
-          }
-          return prev;
-        });
-      }
-    }
-  }, [isDrawingHands, cursorPositions, activeTool, brushColor, brushSize]);
 
   const clearCanvas = () => {
     setPaths([]);
