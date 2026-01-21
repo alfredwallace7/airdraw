@@ -11,21 +11,6 @@ interface CanvasLayerProps {
   height: number;
 }
 
-// Helper to convert stroke points to Path2D
-const getSvgPathFromStroke = (stroke: number[][]) => {
-  if (!stroke.length) return '';
-  const d = stroke.reduce(
-    (acc, [x0, y0], i, arr) => {
-      const [x1, y1] = arr[(i + 1) % arr.length];
-      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-      return acc;
-    },
-    ['M', ...stroke[0], 'Q']
-  );
-  d.push('Z');
-  return d.join(' ');
-};
-
 // Cursor colors for each hand
 const CURSOR_COLORS = [
   { hover: '#38bdf8', drawing: '#f472b6' }, // Hand 1: Sky blue / Pink
@@ -55,8 +40,16 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       simulatePressure: true,
     });
 
-    const pathData = getSvgPathFromStroke(stroke);
-    const p = new Path2D(pathData);
+    const p = new Path2D();
+    if (stroke.length > 0) {
+      p.moveTo(stroke[0][0], stroke[0][1]);
+      for (let i = 0; i < stroke.length; i++) {
+        const [x0, y0] = stroke[i];
+        const [x1, y1] = stroke[(i + 1) % stroke.length];
+        p.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      }
+      p.closePath();
+    }
 
     ctx.fillStyle = path.color;
 
