@@ -9,6 +9,7 @@ interface CanvasLayerProps {
   isDrawingHands: boolean[];
   width: number;
   height: number;
+  activeTool: 'pencil' | 'eraser';
 }
 
 // Helper to draw a stroke directly to the canvas context
@@ -42,7 +43,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   cursorPositions,
   isDrawingHands,
   width,
-  height
+  height,
+  activeTool
 }) => {
   const staticCanvasRef = useRef<HTMLCanvasElement>(null);
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,7 +76,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   };
 
   // Check if any hand is using eraser (derived state for rendering optimizations)
-  const isErasing = currentPaths.some(p => p && p.color === 'eraser');
+  // Also include hover state if the active tool is eraser, to show preview
+  const isErasing = currentPaths.some(p => p && p.color === 'eraser') || activeTool === 'eraser';
 
   // 1. Static Layer: Draws completed paths
   // Only re-renders when 'paths' or dimensions change
@@ -124,29 +127,53 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       if (cursorPos) {
         const isDrawing = isDrawingHands[handIndex];
         const colors = CURSOR_COLORS[handIndex] || CURSOR_COLORS[0];
+        const isEraserPreview = activeTool === 'eraser' && !isDrawing;
 
         ctx.beginPath();
-        ctx.arc(cursorPos.x, cursorPos.y, 8, 0, Math.PI * 2);
+        ctx.arc(cursorPos.x, cursorPos.y, isEraserPreview ? 12 : 8, 0, Math.PI * 2);
 
-        ctx.fillStyle = isDrawing ? colors.drawing : colors.hover;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        if (isEraserPreview) {
+          // Eraser preview: Clear the center to show "transparency"
+          ctx.save();
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.fillStyle = '#000000';
+          ctx.fill();
+          ctx.restore();
 
-        ctx.fill();
-        ctx.stroke();
+          // Draw outline
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
 
-        // Target crosshair
-        ctx.beginPath();
-        ctx.moveTo(cursorPos.x - 4, cursorPos.y);
-        ctx.lineTo(cursorPos.x + 4, cursorPos.y);
-        ctx.moveTo(cursorPos.x, cursorPos.y - 4);
-        ctx.lineTo(cursorPos.x, cursorPos.y + 4);
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+          // Inner dashed line
+          ctx.beginPath();
+          ctx.arc(cursorPos.x, cursorPos.y, 10, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ff0000'; // Red for eraser
+          ctx.setLineDash([2, 2]);
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else {
+          ctx.fillStyle = isDrawing ? colors.drawing : colors.hover;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+
+          ctx.fill();
+          ctx.stroke();
+
+          // Target crosshair
+          ctx.beginPath();
+          ctx.moveTo(cursorPos.x - 4, cursorPos.y);
+          ctx.lineTo(cursorPos.x + 4, cursorPos.y);
+          ctx.moveTo(cursorPos.x, cursorPos.y - 4);
+          ctx.lineTo(cursorPos.x, cursorPos.y + 4);
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
       }
     });
-  }, [paths, currentPaths, cursorPositions, isDrawingHands, width, height, isErasing]);
+  }, [paths, currentPaths, cursorPositions, isDrawingHands, width, height, isErasing, activeTool]);
 
   return (
     <>

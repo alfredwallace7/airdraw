@@ -277,6 +277,7 @@ const App: React.FC = () => {
         isDrawingHands={isDrawingHands}
         width={dimensions.width}
         height={dimensions.height}
+        activeTool={activeTool}
       />
 
       {/* Toolbar (Only visible when camera active) */}
