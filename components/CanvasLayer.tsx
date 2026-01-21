@@ -11,19 +11,23 @@ interface CanvasLayerProps {
   height: number;
 }
 
-// Helper to convert stroke points to Path2D
-const getSvgPathFromStroke = (stroke: number[][]) => {
-  if (!stroke.length) return '';
-  const d = stroke.reduce(
-    (acc, [x0, y0], i, arr) => {
-      const [x1, y1] = arr[(i + 1) % arr.length];
-      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-      return acc;
-    },
-    ['M', ...stroke[0], 'Q']
-  );
-  d.push('Z');
-  return d.join(' ');
+// Helper to draw a stroke directly to the canvas context
+// ⚡ OPTIMIZATION: Avoids O(N) string allocation and Path2D parsing by using direct context calls
+const drawStroke = (ctx: CanvasRenderingContext2D, stroke: number[][]) => {
+  ctx.beginPath();
+  if (stroke.length < 2) return;
+
+  const [firstX, firstY] = stroke[0];
+  ctx.moveTo(firstX, firstY);
+
+  for (let i = 0; i < stroke.length; i++) {
+    const [x0, y0] = stroke[i];
+    const [x1, y1] = stroke[(i + 1) % stroke.length];
+    const midX = (x0 + x1) / 2;
+    const midY = (y0 + y1) / 2;
+    ctx.quadraticCurveTo(x0, y0, midX, midY);
+  }
+  ctx.closePath();
 };
 
 // Cursor colors for each hand
@@ -55,17 +59,17 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       simulatePressure: true,
     });
 
-    const pathData = getSvgPathFromStroke(stroke);
-    const p = new Path2D(pathData);
+    // ⚡ OPTIMIZATION: Use direct context calls instead of Path2D
+    drawStroke(ctx, stroke);
 
     ctx.fillStyle = path.color;
 
     if (path.color === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.fill(p);
+      ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     } else {
-      ctx.fill(p);
+      ctx.fill();
     }
   };
 
