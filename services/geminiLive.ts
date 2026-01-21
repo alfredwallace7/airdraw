@@ -95,7 +95,6 @@ export class GeminiLiveService {
   }
 
   private async handleMessage(message: LiveServerMessage) {
-    console.log("Gemini Message:", message); // Debug log
     // 1. Handle Tool Calls (The core of our app)
     if (message.toolCall) {
       for (const fc of message.toolCall.functionCalls) {
@@ -139,7 +138,6 @@ export class GeminiLiveService {
   async sendVideoFrame(base64Data: string) {
     if (this.session) {
       try {
-        console.log("Sending Realtime Input, length:", base64Data.length); // Debug log
         await this.session.sendRealtimeInput({
           media: {
             mimeType: 'image/jpeg',
