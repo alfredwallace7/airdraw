@@ -49,17 +49,33 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const staticCanvasRef = useRef<HTMLCanvasElement>(null);
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  // ⚡ OPTIMIZATION: Cache calculated strokes for completed paths
+  // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
+  const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
+
   // Helper to draw a path using perfect-freehand
-  const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath) => {
+  const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath, useCache: boolean = false) => {
     if (path.points.length < 2) return;
 
-    const stroke = getStroke(path.points, {
-      size: path.width,
-      thinning: 0.5,
-      smoothing: 0.5,
-      streamline: 0.5,
-      simulatePressure: true,
-    });
+    let stroke: number[][] | undefined;
+
+    if (useCache) {
+      stroke = strokeCache.current.get(path);
+    }
+
+    if (!stroke) {
+      stroke = getStroke(path.points, {
+        size: path.width,
+        thinning: 0.5,
+        smoothing: 0.5,
+        streamline: 0.5,
+        simulatePressure: true,
+      });
+
+      if (useCache) {
+        strokeCache.current.set(path, stroke);
+      }
+    }
 
     // ⚡ OPTIMIZATION: Use direct context calls instead of Path2D
     drawStroke(ctx, stroke);
@@ -88,7 +104,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, width, height);
-    paths.forEach(path => renderPath(ctx, path));
+    // Use cache for static paths as they are immutable
+    paths.forEach(path => renderPath(ctx, path, true));
 
   }, [paths, width, height]);
 
@@ -111,14 +128,16 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         ctx.drawImage(staticCanvasRef.current, 0, 0);
       } else {
         // Fallback (should normally not be reached if refs are set)
-        paths.forEach(path => renderPath(ctx, path));
+        // If we fallback, we should also use cache for performance
+        paths.forEach(path => renderPath(ctx, path, true));
       }
     }
 
     // Draw current active paths for all hands
     currentPaths.forEach((currentPath) => {
       if (currentPath) {
-        renderPath(ctx, currentPath);
+        // Do NOT use cache for active paths as they are mutating
+        renderPath(ctx, currentPath, false);
       }
     });
 
