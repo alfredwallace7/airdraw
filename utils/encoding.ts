@@ -1,3 +1,5 @@
+import AudioWorker from './workers/audioWorker?worker';
+
 // Convert a Blob to a Base64 string
 export const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -30,15 +32,34 @@ export async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  const dataInt16 = new Int16Array(data.buffer);
-  const frameCount = dataInt16.length / numChannels;
-  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+  return new Promise((resolve, reject) => {
+    // Note: Creating a new worker for every call has some overhead, but it ensures
+    // we don't block the main thread with heavy decoding.
+    // For very high frequency calls, a persistent worker pool would be better.
+    const worker = new AudioWorker();
 
-  for (let channel = 0; channel < numChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    for (let i = 0; i < frameCount; i++) {
-      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-    }
-  }
-  return buffer;
+    worker.onmessage = (e: MessageEvent) => {
+      const { channels } = e.data;
+      const frameCount = channels[0].length;
+      const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+      for (let i = 0; i < numChannels; i++) {
+        buffer.copyToChannel(channels[i], i);
+      }
+
+      worker.terminate();
+      resolve(buffer);
+    };
+
+    worker.onerror = (err) => {
+      worker.terminate();
+      reject(err);
+    };
+
+    // Send data to worker. We transfer the buffer to avoid copying.
+    // WARNING: This operation detaches 'data.buffer', making the input 'data' array unusable in the main thread.
+    // Ensure 'data' is not reused after calling this function.
+    const buffer = data.buffer;
+    worker.postMessage({ data: buffer, numChannels }, [buffer]);
+  });
 }
