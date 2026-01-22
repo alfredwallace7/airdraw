@@ -28,6 +28,19 @@ export const COLORS = [
     '#ffffff', // White
 ];
 
+const COLOR_LABELS: Record<string, string> = {
+    '#ef4444': 'Red',
+    '#f97316': 'Orange',
+    '#fde047': 'Yellow',
+    '#a3e635': 'Lime',
+    '#22c55e': 'Green',
+    '#38bdf8': 'Sky Blue',
+    '#3b82f6': 'Blue',
+    '#a855f7': 'Purple',
+    '#f472b6': 'Pink',
+    '#ffffff': 'White',
+};
+
 export const SIZES = [2, 4, 8, 12, 16, 24, 32, 48, 64];
 export const OPACITIES = [0, 0.25, 0.5, 0.75, 1.0];
 
@@ -62,6 +75,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={() => { onToolChange('pencil'); setActiveMenu(null); }}
                     className={`p-3 rounded-xl transition-all ${activeTool === 'pencil' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Pencil"
+                    aria-label="Select pencil tool"
                 >
                     <Pencil size={24} />
                 </button>
@@ -71,6 +85,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={() => { onToolChange('eraser'); setActiveMenu(null); }}
                     className={`p-3 rounded-xl transition-all ${activeTool === 'eraser' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Eraser"
+                    aria-label="Select eraser tool"
                 >
                     <Eraser size={24} />
                 </button>
@@ -85,6 +100,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={() => toggleMenu('colors')}
                     className={`p-3 rounded-xl transition-all ${activeMenu === 'colors' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Colors"
+                    aria-label="Open color menu"
                 >
                     <Palette size={24} style={{ color: activeTool === 'pencil' ? brushColor : undefined }} />
                 </button>
@@ -95,6 +111,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={() => toggleMenu('sizes')}
                     className={`p-3 rounded-xl transition-all flex items-center justify-center ${activeMenu === 'sizes' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Brush Size"
+                    aria-label="Open brush size menu"
                 >
                     <Circle size={24} fill="currentColor" className="opacity-50" style={{ transform: `scale(${Math.min(1, Math.max(0.4, brushSize / 24))})` }} />
                 </button>
@@ -105,6 +122,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={() => toggleMenu('opacity')}
                     className={`p-3 rounded-xl transition-all ${activeMenu === 'opacity' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Camera Opacity"
+                    aria-label="Open camera opacity menu"
                 >
                     <Droplets size={24} />
                 </button>
@@ -117,6 +135,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={() => toggleMenu('clear')}
                     className={`p-3 rounded-xl transition-all ${activeMenu === 'clear' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Clear Canvas"
+                    aria-label="Open clear canvas menu"
                 >
                     <Trash2 size={24} />
                 </button>
@@ -127,6 +146,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     onClick={onToggleHelp}
                     className={`p-3 rounded-xl transition-all ${showHelp ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Toggle Help"
+                    aria-label="Toggle help instructions"
                 >
                     <HelpCircle size={24} />
                 </button>
@@ -139,7 +159,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
                     {/* Colors Flyout */}
                     {activeMenu === 'colors' && (
-                        <div className="grid grid-cols-2 gap-3 w-32">
+                        <div className="grid grid-cols-2 gap-3 w-32" role="group" aria-label="Color selection">
                             {COLORS.map(color => (
                                 <button
                                     key={color}
@@ -147,6 +167,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                     onClick={() => { onColorChange(color); setActiveMenu(null); }}
                                     className={`w-14 h-14 rounded-xl border-2 transition-all ${brushColor === color ? 'border-white scale-105 shadow-lg' : 'border-transparent hover:scale-105'}`}
                                     style={{ backgroundColor: color }}
+                                    title={COLOR_LABELS[color] || color}
+                                    aria-label={`Select ${COLOR_LABELS[color] || color} color`}
                                 />
                             ))}
                         </div>
@@ -154,13 +176,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
                     {/* Sizes Flyout */}
                     {activeMenu === 'sizes' && (
-                        <div className="grid grid-cols-2 gap-3 w-48 items-center justify-items-center">
+                        <div className="grid grid-cols-2 gap-3 w-48 items-center justify-items-center" role="group" aria-label="Brush size selection">
                             {SIZES.map(size => (
                                 <button
                                     key={size}
                                     data-clickable="true"
                                     onClick={() => { onSizeChange(size); setActiveMenu(null); }}
                                     className={`p-2 rounded-full bg-slate-200 transition-all flex items-center justify-center ${brushSize === size ? 'bg-white scale-110 shadow-lg ring-2 ring-sky-500' : 'bg-slate-500 hover:bg-slate-400'}`}
+                                    title={`${size}px`}
+                                    aria-label={`Set brush size to ${size} pixels`}
                                 >
                                     <div style={{ width: size, height: size, backgroundColor: 'black', borderRadius: '50%' }} />
                                 </button>
@@ -170,13 +194,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
                     {/* Opacity Flyout */}
                     {activeMenu === 'opacity' && (
-                        <div className="flex flex-col gap-3 w-24">
+                        <div className="flex flex-col gap-3 w-24" role="group" aria-label="Camera opacity selection">
                             {OPACITIES.map(opacity => (
                                 <button
                                     key={opacity}
                                     data-clickable="true"
                                     onClick={() => { onOpacityChange(opacity); setActiveMenu(null); }}
                                     className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${videoOpacity === opacity ? 'bg-sky-500 text-white shadow-lg' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                    aria-label={`Set camera opacity to ${opacity * 100}%`}
                                 >
                                     {opacity * 100}%
                                 </button>
@@ -186,14 +211,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
                     {/* Clear Confirmation Flyout */}
                     {activeMenu === 'clear' && (
-                        <div className="flex flex-col gap-3 w-32">
-                            <div className="text-slate-300 text-sm font-medium text-center mb-1">
+                        <div className="flex flex-col gap-3 w-32" role="alertdialog" aria-labelledby="clear-dialog-title">
+                            <div id="clear-dialog-title" className="text-slate-300 text-sm font-medium text-center mb-1">
                                 Clear Canvas?
                             </div>
                             <button
                                 data-clickable="true"
                                 onClick={() => { onClear(); setActiveMenu(null); }}
                                 className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all"
+                                aria-label="Confirm clear canvas"
                             >
                                 <Check size={18} /> Yes
                             </button>
@@ -201,6 +227,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                 data-clickable="true"
                                 onClick={() => setActiveMenu(null)}
                                 className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-medium transition-all"
+                                aria-label="Cancel clear canvas"
                             >
                                 <X size={18} /> No
                             </button>
