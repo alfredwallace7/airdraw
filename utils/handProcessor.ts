@@ -23,6 +23,36 @@ export const processMultipleHands = (
     const positions: (Point | null)[] = [null, null];
     const isDrawing: boolean[] = [false, false];
 
+    // ⚡ OPTIMIZATION: Calculate layout metrics once per frame, not per hand
+    // This avoids redundant DOM reads and arithmetic inside the loop
+    let layoutMetrics = null;
+    if (videoRef.current && videoRef.current.videoWidth) {
+        const videoW = videoRef.current.videoWidth;
+        const videoH = videoRef.current.videoHeight;
+        const screenW = dims.width;
+        const screenH = dims.height;
+
+        const videoRatio = videoW / videoH;
+        const screenRatio = screenW / screenH;
+
+        let scale, scaledW, scaledH, offsetX, offsetY;
+
+        if (screenRatio > videoRatio) {
+            scale = screenW / videoW;
+            scaledW = screenW;
+            scaledH = videoH * scale;
+            offsetX = 0;
+            offsetY = (scaledH - screenH) / 2;
+        } else {
+            scale = screenH / videoH;
+            scaledW = videoW * scale;
+            scaledH = screenH;
+            offsetX = (scaledW - screenW) / 2;
+            offsetY = 0;
+        }
+        layoutMetrics = { scaledW, scaledH, offsetX, offsetY };
+    }
+
     // Process each detected hand (up to 2)
     for (let handIndex = 0; handIndex < Math.min(landmarks.length, maxHands); handIndex++) {
         const handLandmarks = landmarks[handIndex];
@@ -51,30 +81,8 @@ export const processMultipleHands = (
         let screenX: number;
         let screenY: number;
 
-        if (videoRef.current && videoRef.current.videoWidth) {
-            const videoW = videoRef.current.videoWidth;
-            const videoH = videoRef.current.videoHeight;
-            const screenW = dims.width;
-            const screenH = dims.height;
-
-            const videoRatio = videoW / videoH;
-            const screenRatio = screenW / screenH;
-
-            let scale, scaledW, scaledH, offsetX, offsetY;
-
-            if (screenRatio > videoRatio) {
-                scale = screenW / videoW;
-                scaledW = screenW;
-                scaledH = videoH * scale;
-                offsetX = 0;
-                offsetY = (scaledH - screenH) / 2;
-            } else {
-                scale = screenH / videoH;
-                scaledW = videoW * scale;
-                scaledH = screenH;
-                offsetX = (scaledW - screenW) / 2;
-                offsetY = 0;
-            }
+        if (layoutMetrics) {
+            const { scaledW, scaledH, offsetX, offsetY } = layoutMetrics;
 
             const rawX = indexTip.x * scaledW;
             const rawY = indexTip.y * scaledH;
