@@ -21,11 +21,10 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Multi-hand state (Index 0 = Hand 1, Index 1 = Hand 2)
-  const [cursorPositions, setCursorPositions] = useState<(Point | null)[]>([null, null]);
-  const [isDrawingHands, setIsDrawingHands] = useState<boolean[]>([false, false]);
+  const cursorPositionsRef = useRef<(Point | null)[]>([null, null]);
+  const isDrawingHandsRef = useRef<boolean[]>([false, false]);
 
   const [paths, setPaths] = useState<DrawPath[]>([]);
-  const [currentPaths, setCurrentPaths] = useState<(DrawPath | null)[]>([null, null]);
   const [debugInfo, setDebugInfo] = useState<string>('');
 
   // Tool State
@@ -104,8 +103,8 @@ const App: React.FC = () => {
     const isHelpVisible = showHelpRef.current;
 
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-      setCursorPositions([null, null]);
-      setIsDrawingHands([false, false]);
+      cursorPositionsRef.current = [null, null];
+      isDrawingHandsRef.current = [false, false];
 
       // Clear current paths if hands are lost during drawing?
       // Or just keep them suspended? Existing logic cleared tracking but not paths explicitly.
@@ -162,12 +161,11 @@ const App: React.FC = () => {
 
     if (pathsUpdated) {
         currentPathsRef.current = newCurrentPaths;
-        setCurrentPaths([...newCurrentPaths]); // Trigger render with new array ref
     }
     // -------------------------------------------------------------------------
 
-    setCursorPositions(handResults.positions);
-    setIsDrawingHands(handResults.isDrawing);
+    cursorPositionsRef.current = handResults.positions;
+    isDrawingHandsRef.current = handResults.isDrawing;
 
     // Update debug info every 10 frames
     if (frameCountRef.current % 10 === 0) {
@@ -244,14 +242,14 @@ const App: React.FC = () => {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
-    setCursorPositions([null, null]);
-    setIsDrawingHands([false, false]);
+    cursorPositionsRef.current = [null, null];
+    isDrawingHandsRef.current = [false, false];
   }, []);
 
 
   const clearCanvas = useCallback(() => {
     setPaths([]);
-    setCurrentPaths([null, null]);
+    currentPathsRef.current = [null, null];
   }, []);
 
   const handleToggleHelp = useCallback(() => {
@@ -272,9 +270,9 @@ const App: React.FC = () => {
       {/* Drawing Overlay */}
       <CanvasLayer
         paths={paths}
-        currentPaths={currentPaths}
-        cursorPositions={cursorPositions}
-        isDrawingHands={isDrawingHands}
+        currentPathsRef={currentPathsRef}
+        cursorPositionsRef={cursorPositionsRef}
+        isDrawingHandsRef={isDrawingHandsRef}
         width={dimensions.width}
         height={dimensions.height}
         activeTool={activeTool}
