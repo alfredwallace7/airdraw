@@ -25,7 +25,7 @@ const App: React.FC = () => {
   const isDrawingHandsRef = useRef<boolean[]>([false, false]);
 
   const [paths, setPaths] = useState<DrawPath[]>([]);
-  const [debugInfo, setDebugInfo] = useState<string>('');
+  const debugInfoRef = useRef<HTMLDivElement>(null);
 
   // Tool State
   const [activeTool, setActiveTool] = useState<'pencil' | 'eraser'>('pencil');
@@ -110,7 +110,10 @@ const App: React.FC = () => {
       // Or just keep them suspended? Existing logic cleared tracking but not paths explicitly.
       // Let's keep existing behavior but reset histories.
 
-      if (frameCountRef.current % 10 === 0) setDebugInfo('No hands detected');
+      if (frameCountRef.current % 10 === 0 && debugInfoRef.current) {
+        debugInfoRef.current.textContent = 'No hands detected';
+        debugInfoRef.current.style.display = 'block';
+      }
       frameCountRef.current++;
       lastCursorPositions.current = [null, null];
       gestureHistories.current = [[], []];
@@ -168,10 +171,11 @@ const App: React.FC = () => {
     isDrawingHandsRef.current = handResults.isDrawing;
 
     // Update debug info every 10 frames
-    if (frameCountRef.current % 10 === 0) {
+    if (frameCountRef.current % 10 === 0 && debugInfoRef.current) {
       const handCount = results.multiHandLandmarks.length;
       const drawingCount = handResults.isDrawing.filter(d => d).length;
-      setDebugInfo(`${handCount} hand${handCount !== 1 ? 's' : ''} | ${drawingCount} drawing`);
+      debugInfoRef.current.textContent = `${handCount} hand${handCount !== 1 ? 's' : ''} | ${drawingCount} drawing`;
+      debugInfoRef.current.style.display = 'block';
     }
     frameCountRef.current++;
 
@@ -342,11 +346,11 @@ const App: React.FC = () => {
 
       {/* Status Indicators */}
       <div className="absolute bottom-6 left-6 flex flex-col gap-2 z-40 select-none">
-        {debugInfo && (
-          <div className="bg-slate-900/60 backdrop-blur-sm p-2 rounded-xl border border-slate-700 text-xs font-mono text-cyan-400">
-            {debugInfo}
-          </div>
-        )}
+        <div
+          ref={debugInfoRef}
+          className="bg-slate-900/60 backdrop-blur-sm p-2 rounded-xl border border-slate-700 text-xs font-mono text-cyan-400"
+          style={{ display: 'none' }}
+        />
       </div>
 
       {/* Instructions */}
