@@ -9,3 +9,7 @@
 ## 2026-01-22 - Decoupled React Animation Loop
 **Learning:** Even with optimized effects, updating React state for 60fps data (e.g. cursor positions) forces the entire component tree to re-render, creating unnecessary overhead.
 **Action:** For high-frequency visual updates, replace `useState` with `useRef` and drive the rendering via a `requestAnimationFrame` loop that reads refs directly, bypassing the React render cycle completely.
+
+## 2026-01-25 - Loop-Invariant DOM Access
+**Learning:** Accessing DOM properties (like `videoWidth`) inside a tight loop (e.g., per-hand processing) triggers unnecessary layout/reflow checks and redundant arithmetic.
+**Action:** Lift invariant calculations and DOM reads out of loops, especially in high-frequency functions like `requestAnimationFrame` callbacks or MediaPipe `onResults`.
