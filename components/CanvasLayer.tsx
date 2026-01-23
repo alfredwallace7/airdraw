@@ -104,17 +104,40 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
     }
   };
 
+  // ⚡ OPTIMIZATION: Track rendering state for incremental updates
+  const renderedPathsCount = useRef(0);
+  const prevWidth = useRef(width);
+  const prevHeight = useRef(height);
+
   // 1. Static Layer: Draws completed paths
-  // Only re-renders when 'paths' or dimensions change
+  // ⚡ OPTIMIZATION: Use incremental drawing to avoid O(N) redraws on every new stroke
   useEffect(() => {
     const canvas = staticCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, width, height);
-    // Use cache for static paths as they are immutable
-    paths.forEach(path => renderPath(ctx, path, true));
+    const isResize = width !== prevWidth.current || height !== prevHeight.current;
+    // If paths array shrank (undo/clear), we must full redraw
+    const isReset = paths.length < renderedPathsCount.current;
+
+    // Check for full redraw condition
+    if (isResize || isReset) {
+      // Full Redraw
+      ctx.clearRect(0, 0, width, height);
+      paths.forEach(path => renderPath(ctx, path, true));
+
+      // Update tracking refs
+      renderedPathsCount.current = paths.length;
+      prevWidth.current = width;
+      prevHeight.current = height;
+    } else {
+      // Incremental Draw: Only draw new paths
+      for (let i = renderedPathsCount.current; i < paths.length; i++) {
+        renderPath(ctx, paths[i], true);
+      }
+      renderedPathsCount.current = paths.length;
+    }
 
   }, [paths, width, height]);
 
