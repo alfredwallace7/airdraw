@@ -97,6 +97,17 @@ const App: React.FC = () => {
   useEffect(() => { brushColorRef.current = brushColor; }, [brushColor]);
   useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
 
+  // Close Settings on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSettingsOpen) {
+        setIsSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen]);
+
   // Process MediaPipe Results
   const onResults = useCallback((results: Results) => {
     const dims = dimensionsRef.current;
@@ -310,6 +321,7 @@ const App: React.FC = () => {
               onClick={() => setIsSettingsOpen(true)}
               className="p-1 text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-slate-800/50 cursor-pointer"
               title="Settings (Mouse Only)"
+              aria-label="Open settings"
             >
               <Settings size={14} />
             </button>
@@ -339,6 +351,7 @@ const App: React.FC = () => {
           onClick={clearCanvas}
           className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
           title="Clear Canvas"
+          aria-label="Clear canvas"
         >
           <Trash2 size={20} />
         </button>
@@ -369,16 +382,26 @@ const App: React.FC = () => {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsSettingsOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-800">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <h2 id="settings-title" className="text-xl font-bold text-white flex items-center gap-2">
                 <Settings className="text-sky-400" size={24} /> Settings
               </h2>
-              <button 
+              <button
                 onClick={() => setIsSettingsOpen(false)}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                aria-label="Close settings"
               >
                 <CloseIcon size={20} />
               </button>
