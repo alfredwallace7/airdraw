@@ -13,3 +13,7 @@
 ## 2026-01-25 - Loop-Invariant DOM Access
 **Learning:** Accessing DOM properties (like `videoWidth`) inside a tight loop (e.g., per-hand processing) triggers unnecessary layout/reflow checks and redundant arithmetic.
 **Action:** Lift invariant calculations and DOM reads out of loops, especially in high-frequency functions like `requestAnimationFrame` callbacks or MediaPipe `onResults`.
+
+## 2026-01-26 - Incremental Canvas Drawing
+**Learning:** Redrawing the entire canvas history (O(N)) on every new stroke completion causes performance degradation as the session length increases.
+**Action:** Implement incremental drawing by tracking rendered state. Only draw new paths (O(1)) unless a full invalidation (resize/undo) occurs.

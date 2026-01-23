@@ -50,6 +50,10 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameIdRef = useRef<number>(0);
 
+  // ⚡ OPTIMIZATION: Track rendered state to enable incremental drawing
+  const renderedPathsCount = useRef(0);
+  const prevDimensions = useRef({ width: 0, height: 0 });
+
   // ⚡ OPTIMIZATION: Cache calculated strokes for completed paths
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
   const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
@@ -93,16 +97,35 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   };
 
   // 1. Static Layer: Draws completed paths
-  // Only re-renders when 'paths' or dimensions change
+  // ⚡ OPTIMIZATION: Incremental drawing
+  // Instead of clearing and redrawing everything (O(N)) when a new path is added,
+  // we only draw the new path (O(1)) unless a full redraw is required (resize/clear).
   useEffect(() => {
     const canvas = staticCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, width, height);
-    // Use cache for static paths as they are immutable
-    paths.forEach(path => renderPath(ctx, path, true));
+    // Detect if we need a full redraw
+    const isResize = width !== prevDimensions.current.width || height !== prevDimensions.current.height;
+    const isReset = paths.length < renderedPathsCount.current;
+    const needsFullRedraw = isResize || isReset;
+
+    let startFrom = renderedPathsCount.current;
+
+    if (needsFullRedraw) {
+      ctx.clearRect(0, 0, width, height);
+      startFrom = 0;
+    }
+
+    // Draw only new paths (or all if full redraw)
+    for (let i = startFrom; i < paths.length; i++) {
+      renderPath(ctx, paths[i], true);
+    }
+
+    // Update refs
+    renderedPathsCount.current = paths.length;
+    prevDimensions.current = { width, height };
 
   }, [paths, width, height]);
 
