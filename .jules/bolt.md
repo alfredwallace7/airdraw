@@ -17,3 +17,7 @@
 ## 2026-01-26 - Incremental Canvas Drawing
 **Learning:** Redrawing the entire canvas history on every new stroke (O(N)) becomes a bottleneck as the number of paths grows. By tracking the number of already-rendered paths, we can switch to an incremental draw strategy (O(1)) for the common "append" case.
 **Action:** When managing a canvas with an append-only data model, use a ref to track rendered state and only draw the delta, falling back to full redraws only for clears, resets, or resizes.
+
+## 2026-01-26 - Async Video Frame Processing
+**Learning:** For high-frequency video processing (e.g. MediaPipe), using an intermediate `<canvas>` with `drawImage` (synchronous, main-thread) to downscale frames introduces significant blocking overhead. Replacing it with `createImageBitmap` (asynchronous, off-thread) with resize options allows the browser to optimize decoding and scaling, freeing up the main thread for UI and drawing.
+**Action:** When processing video frames for AI models, prefer `createImageBitmap(video, { resizeWidth, resizeHeight })` over `canvas.drawImage`.
