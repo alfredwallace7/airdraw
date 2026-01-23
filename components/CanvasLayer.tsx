@@ -50,6 +50,18 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameIdRef = useRef<number>(0);
 
+  // Refs to decouple animation loop from React renders
+  const pathsRef = useRef(paths);
+  const activeToolRef = useRef(activeTool);
+
+  useEffect(() => {
+    pathsRef.current = paths;
+  }, [paths]);
+
+  useEffect(() => {
+    activeToolRef.current = activeTool;
+  }, [activeTool]);
+
   // ⚡ OPTIMIZATION: Cache calculated strokes for completed paths
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
   const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
@@ -128,7 +140,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       const isDrawingHands = isDrawingHandsRef.current;
 
       // Check if any hand is using eraser (derived logic inside loop)
-      const isErasing = currentPaths.some(p => p && p.color === 'eraser') || activeTool === 'eraser';
+      const isErasing = currentPaths.some(p => p && p.color === 'eraser') || activeToolRef.current === 'eraser';
 
       ctx.clearRect(0, 0, width, height);
 
@@ -139,7 +151,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
           ctx.drawImage(staticCanvasRef.current, 0, 0);
         } else {
           // Fallback
-          paths.forEach(path => renderPath(ctx, path, true));
+          pathsRef.current.forEach(path => renderPath(ctx, path, true));
         }
       }
 
@@ -155,7 +167,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         if (cursorPos) {
           const isDrawing = isDrawingHands[handIndex];
           const colors = CURSOR_COLORS[handIndex] || CURSOR_COLORS[0];
-          const isEraserPreview = activeTool === 'eraser' && !isDrawing;
+          const isEraserPreview = activeToolRef.current === 'eraser' && !isDrawing;
 
           ctx.beginPath();
           ctx.arc(cursorPos.x, cursorPos.y, isEraserPreview ? 12 : 8, 0, Math.PI * 2);
@@ -218,7 +230,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         cancelAnimationFrame(animationFrameIdRef.current);
       }
     };
-  }, [width, height, activeTool, paths]); // Re-start loop if these change
+  }, [width, height]); // Only restart loop if dimensions change
 
   return (
     <>
