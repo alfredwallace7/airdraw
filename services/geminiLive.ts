@@ -1,6 +1,6 @@
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from '@google/genai';
 import { MODEL_NAME, SYSTEM_INSTRUCTION } from '../constants';
-import { decode, decodeAudioData } from '../utils/encoding';
+import { decodeAudioData } from '../utils/encoding';
 
 // Define the tool for tracking
 const updatePointerTool: FunctionDeclaration = {
@@ -119,8 +119,9 @@ export class GeminiLiveService {
     const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
     if (base64Audio && this.audioContext) {
       try {
+        // ⚡ OPTIMIZATION: Pass Base64 string directly to worker to avoid main-thread blocking
         const audioBuffer = await decodeAudioData(
-          decode(base64Audio),
+          base64Audio,
           this.audioContext,
           24000,
           1
