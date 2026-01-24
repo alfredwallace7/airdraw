@@ -74,7 +74,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     data-clickable="true"
                     onClick={() => { onToolChange('pencil'); setActiveMenu(null); }}
                     className={`p-3 rounded-xl transition-all ${activeTool === 'pencil' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                    title="Pencil"
+                    title="Pencil (P)"
                     aria-label="Select pencil tool"
                 >
                     <Pencil size={24} />
@@ -84,7 +84,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     data-clickable="true"
                     onClick={() => { onToolChange('eraser'); setActiveMenu(null); }}
                     className={`p-3 rounded-xl transition-all ${activeTool === 'eraser' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                    title="Eraser"
+                    title="Eraser (E)"
                     aria-label="Select eraser tool"
                 >
                     <Eraser size={24} />
@@ -110,7 +110,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     data-clickable="true"
                     onClick={() => toggleMenu('sizes')}
                     className={`p-3 rounded-xl transition-all flex items-center justify-center ${activeMenu === 'sizes' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                    title="Brush Size"
+                    title="Brush Size ([ / ])"
                     aria-label="Open brush size menu"
                 >
                     <Circle size={24} fill="currentColor" className="opacity-50" style={{ transform: `scale(${Math.min(1, Math.max(0.4, brushSize / 24))})` }} />
@@ -145,7 +145,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     data-clickable="true"
                     onClick={onToggleHelp}
                     className={`p-3 rounded-xl transition-all ${showHelp ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
-                    title="Toggle Help"
+                    title="Toggle Help (H)"
                     aria-label="Toggle help instructions"
                 >
                     <HelpCircle size={24} />

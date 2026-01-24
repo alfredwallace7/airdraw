@@ -44,6 +44,10 @@ const App: React.FC = () => {
     }
   }, [activeTool]);
 
+  const handleToggleHelp = useCallback(() => {
+    setShowHelp(prev => !prev);
+  }, []);
+
   const [videoOpacity, setVideoOpacity] = useState(0.25); // Default 25% opacity
 
   // --- Refs ---
@@ -107,6 +111,47 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSettingsOpen]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSettingsOpen) return;
+
+      // Ignore if modifier keys are pressed (Ctrl, Alt, Meta) to avoid conflicting with browser shortcuts
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      const key = e.key.toLowerCase();
+
+      switch (key) {
+        case 'p':
+          setActiveTool('pencil');
+          break;
+        case 'e':
+          setActiveTool('eraser');
+          break;
+        case 'h':
+          handleToggleHelp();
+          break;
+        case '[': {
+          const currentIndex = SIZES.indexOf(brushSize);
+          if (currentIndex > 0) {
+            handleSizeChange(SIZES[currentIndex - 1]);
+          }
+          break;
+        }
+        case ']': {
+          const currentIndex = SIZES.indexOf(brushSize);
+          if (currentIndex < SIZES.length - 1) {
+            handleSizeChange(SIZES[currentIndex + 1]);
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, brushSize, handleSizeChange, handleToggleHelp]);
 
   // Process MediaPipe Results
   const onResults = useCallback((results: Results) => {
@@ -265,10 +310,6 @@ const App: React.FC = () => {
   const clearCanvas = useCallback(() => {
     setPaths([]);
     currentPathsRef.current = [null, null];
-  }, []);
-
-  const handleToggleHelp = useCallback(() => {
-    setShowHelp(prev => !prev);
   }, []);
 
   return (
