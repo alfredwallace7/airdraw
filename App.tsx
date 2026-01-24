@@ -240,9 +240,6 @@ const App: React.FC = () => {
     // Simple UI interaction for first hand only (to avoid conflicts)
     const firstPos = handResults.positions[0];
     if (firstPos) {
-      const element = document.elementFromPoint(firstPos.x, firstPos.y);
-      const isClickable = element?.getAttribute('data-clickable') === 'true';
-
       // Check if hovering over instructions
       const instructionsWidth = 320;
       const instructionsHeight = 200;
@@ -255,10 +252,16 @@ const App: React.FC = () => {
       }
 
       // UI interaction with first hand
-      if (isClickable && handResults.isDrawing[0] && !clickCooldown.current) {
-        (element as HTMLElement).click();
-        clickCooldown.current = true;
-        setTimeout(() => { clickCooldown.current = false; }, 500);
+      // ⚡ OPTIMIZATION: Only query DOM when actually clicking to avoid expensive Reflows on every frame
+      if (handResults.isDrawing[0] && !clickCooldown.current) {
+        const element = document.elementFromPoint(firstPos.x, firstPos.y);
+        const isClickable = element?.getAttribute('data-clickable') === 'true';
+
+        if (isClickable) {
+          (element as HTMLElement).click();
+          clickCooldown.current = true;
+          setTimeout(() => { clickCooldown.current = false; }, 500);
+        }
       }
     }
 
