@@ -25,3 +25,7 @@
 ## 2026-02-04 - Off-Thread Base64 Decoding
 **Learning:** Decoding Base64 strings to binary arrays (using `atob` and loops) on the main thread is an O(N) operation that blocks the event loop, causing jank during high-frequency audio updates (e.g. Gemini Live).
 **Action:** Move Base64 decoding logic into a Web Worker. Workers support `atob`, allowing the expensive string parsing and array construction to happen in parallel without affecting UI frame rate.
+
+## 2026-02-05 - Conditional DOM Hit-Testing
+**Learning:** Calling `document.elementFromPoint` in a high-frequency loop (60fps) triggers synchronous layout/reflow, consuming significant frame budget.
+**Action:** Guard expensive DOM queries with state checks (e.g. `isDrawing`) so they only run when interaction is actually occurring, not during passive hovering.
