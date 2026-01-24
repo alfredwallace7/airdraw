@@ -1,8 +1,24 @@
 
 self.onmessage = (e: MessageEvent) => {
   const { data, numChannels } = e.data;
-  // data is an ArrayBuffer here because we transferred it
-  const dataInt16 = new Int16Array(data);
+
+  let arrayBuffer: ArrayBuffer;
+
+  if (typeof data === 'string') {
+    // ⚡ OPTIMIZATION: Decode Base64 in worker to avoid main-thread blocking
+    const binaryString = atob(data);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    arrayBuffer = bytes.buffer;
+  } else {
+    // data is already an ArrayBuffer (transferred)
+    arrayBuffer = data;
+  }
+
+  const dataInt16 = new Int16Array(arrayBuffer);
   const frameCount = dataInt16.length / numChannels;
 
   // Prepare array of Float32Arrays for each channel

@@ -21,3 +21,7 @@
 ## 2026-01-26 - Async Video Frame Processing
 **Learning:** For high-frequency video processing (e.g. MediaPipe), using an intermediate `<canvas>` with `drawImage` (synchronous, main-thread) to downscale frames introduces significant blocking overhead. Replacing it with `createImageBitmap` (asynchronous, off-thread) with resize options allows the browser to optimize decoding and scaling, freeing up the main thread for UI and drawing.
 **Action:** When processing video frames for AI models, prefer `createImageBitmap(video, { resizeWidth, resizeHeight })` over `canvas.drawImage`.
+
+## 2026-02-04 - Off-Thread Base64 Decoding
+**Learning:** Decoding Base64 strings to binary arrays (using `atob` and loops) on the main thread is an O(N) operation that blocks the event loop, causing jank during high-frequency audio updates (e.g. Gemini Live).
+**Action:** Move Base64 decoding logic into a Web Worker. Workers support `atob`, allowing the expensive string parsing and array construction to happen in parallel without affecting UI frame rate.
