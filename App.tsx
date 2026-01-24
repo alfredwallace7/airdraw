@@ -5,7 +5,7 @@ import CanvasLayer from './components/CanvasLayer';
 import Toolbar, { COLORS, SIZES } from './components/Toolbar';
 import { DrawPath, Point, CameraQuality } from './types';
 import { Results } from '@mediapipe/hands';
-import { processMultipleHands } from './utils/handProcessor';
+import { processMultipleHands, calculateLayoutMetrics, LayoutMetrics } from './utils/handProcessor';
 import { Settings, X as CloseIcon } from 'lucide-react';
 
 const CAMERA_QUALITIES: CameraQuality[] = [
@@ -54,6 +54,8 @@ const App: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   // ⚡ OPTIMIZATION: Cache video dimensions to avoid layout thrashing during frame processing
   const videoDimensionsRef = useRef({ width: 0, height: 0 });
+  // ⚡ OPTIMIZATION: Memoize layout metrics to avoid recalculation per frame (60fps)
+  const layoutMetricsRef = useRef<LayoutMetrics | null>(null);
   const handTrackingService = useRef<HandTrackingService | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -82,6 +84,11 @@ const App: React.FC = () => {
     handleResize();
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ⚡ OPTIMIZATION: Update layout metrics when dimensions change, avoiding loop-invariant calculation
+  useEffect(() => {
+    layoutMetricsRef.current = calculateLayoutMetrics(dimensions, videoDimensionsRef.current);
+  }, [dimensions]);
 
   // Instructions State
   const [showHelp, setShowHelp] = useState(true);
@@ -182,7 +189,7 @@ const App: React.FC = () => {
     const handResults = processMultipleHands(
       results.multiHandLandmarks,
       dims,
-      videoDimensionsRef.current,
+      layoutMetricsRef.current,
       lastCursorPositions,
       gestureHistories,
       GESTURE_HISTORY_SIZE
@@ -329,6 +336,7 @@ const App: React.FC = () => {
         onLoadedMetadata={(e) => {
           const video = e.currentTarget;
           videoDimensionsRef.current = { width: video.videoWidth, height: video.videoHeight };
+          layoutMetricsRef.current = calculateLayoutMetrics(dimensions, videoDimensionsRef.current);
         }}
       />
 

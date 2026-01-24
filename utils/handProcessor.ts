@@ -5,6 +5,47 @@ const lerp = (start: number, end: number, factor: number) => {
     return start + (end - start) * factor;
 };
 
+export interface LayoutMetrics {
+    scaledW: number;
+    scaledH: number;
+    offsetX: number;
+    offsetY: number;
+}
+
+export const calculateLayoutMetrics = (
+    screenDims: { width: number; height: number },
+    videoDims: { width: number; height: number }
+): LayoutMetrics | null => {
+    if (videoDims.width <= 0 || videoDims.height <= 0 || screenDims.width <= 0 || screenDims.height <= 0) {
+        return null;
+    }
+
+    const videoW = videoDims.width;
+    const videoH = videoDims.height;
+    const screenW = screenDims.width;
+    const screenH = screenDims.height;
+
+    const videoRatio = videoW / videoH;
+    const screenRatio = screenW / screenH;
+
+    let scaledW, scaledH, offsetX, offsetY;
+
+    if (screenRatio > videoRatio) {
+        const scale = screenW / videoW;
+        scaledW = screenW;
+        scaledH = videoH * scale;
+        offsetX = 0;
+        offsetY = (scaledH - screenH) / 2;
+    } else {
+        const scale = screenH / videoH;
+        scaledW = videoW * scale;
+        scaledH = screenH;
+        offsetX = (scaledW - screenW) / 2;
+        offsetY = 0;
+    }
+    return { scaledW, scaledH, offsetX, offsetY };
+};
+
 export interface HandProcessingResult {
     positions: (Point | null)[];
     isDrawing: boolean[];
@@ -14,7 +55,7 @@ export interface HandProcessingResult {
 export const processMultipleHands = (
     landmarks: any[],
     dims: { width: number; height: number },
-    videoDimensions: { width: number; height: number },
+    layoutMetrics: LayoutMetrics | null,
     lastCursorPositions: { current: (Point | null)[] },
     gestureHistories: { current: boolean[][] },
     GESTURE_HISTORY_SIZE: number
@@ -22,36 +63,6 @@ export const processMultipleHands = (
     const maxHands = 2;
     const positions: (Point | null)[] = [null, null];
     const isDrawing: boolean[] = [false, false];
-
-    // ⚡ OPTIMIZATION: Calculate layout metrics once per frame, not per hand
-    // This avoids redundant DOM reads and arithmetic inside the loop
-    let layoutMetrics = null;
-    if (videoDimensions.width > 0 && videoDimensions.height > 0) {
-        const videoW = videoDimensions.width;
-        const videoH = videoDimensions.height;
-        const screenW = dims.width;
-        const screenH = dims.height;
-
-        const videoRatio = videoW / videoH;
-        const screenRatio = screenW / screenH;
-
-        let scale, scaledW, scaledH, offsetX, offsetY;
-
-        if (screenRatio > videoRatio) {
-            scale = screenW / videoW;
-            scaledW = screenW;
-            scaledH = videoH * scale;
-            offsetX = 0;
-            offsetY = (scaledH - screenH) / 2;
-        } else {
-            scale = screenH / videoH;
-            scaledW = videoW * scale;
-            scaledH = screenH;
-            offsetX = (scaledW - screenW) / 2;
-            offsetY = 0;
-        }
-        layoutMetrics = { scaledW, scaledH, offsetX, offsetY };
-    }
 
     // Process each detected hand (up to 2)
     for (let handIndex = 0; handIndex < Math.min(landmarks.length, maxHands); handIndex++) {
