@@ -48,6 +48,8 @@ const App: React.FC = () => {
 
   // --- Refs ---
   const videoRef = useRef<HTMLVideoElement>(null);
+  // ⚡ OPTIMIZATION: Cache video dimensions to avoid layout thrashing during frame processing
+  const videoDimensionsRef = useRef({ width: 0, height: 0 });
   const handTrackingService = useRef<HandTrackingService | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -135,7 +137,7 @@ const App: React.FC = () => {
     const handResults = processMultipleHands(
       results.multiHandLandmarks,
       dims,
-      videoRef,
+      videoDimensionsRef.current,
       lastCursorPositions,
       gestureHistories,
       GESTURE_HISTORY_SIZE
@@ -280,6 +282,10 @@ const App: React.FC = () => {
         playsInline
         className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-300 ${isCameraActive ? 'block' : 'hidden'}`}
         style={{ opacity: videoOpacity }}
+        onLoadedMetadata={(e) => {
+          const video = e.currentTarget;
+          videoDimensionsRef.current = { width: video.videoWidth, height: video.videoHeight };
+        }}
       />
 
       {/* Drawing Overlay */}
