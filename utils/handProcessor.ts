@@ -14,7 +14,7 @@ export interface HandProcessingResult {
 export const processMultipleHands = (
     landmarks: any[],
     dims: { width: number; height: number },
-    videoRef: { current: HTMLVideoElement | null },
+    videoDimensions: { width: number; height: number },
     lastCursorPositions: { current: (Point | null)[] },
     gestureHistories: { current: boolean[][] },
     GESTURE_HISTORY_SIZE: number
@@ -26,9 +26,9 @@ export const processMultipleHands = (
     // ⚡ OPTIMIZATION: Calculate layout metrics once per frame, not per hand
     // This avoids redundant DOM reads and arithmetic inside the loop
     let layoutMetrics = null;
-    if (videoRef.current && videoRef.current.videoWidth) {
-        const videoW = videoRef.current.videoWidth;
-        const videoH = videoRef.current.videoHeight;
+    if (videoDimensions.width > 0 && videoDimensions.height > 0) {
+        const videoW = videoDimensions.width;
+        const videoH = videoDimensions.height;
         const screenW = dims.width;
         const screenH = dims.height;
 
