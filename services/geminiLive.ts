@@ -99,8 +99,13 @@ export class GeminiLiveService {
     if (message.toolCall) {
       for (const fc of message.toolCall.functionCalls) {
         if (fc.name === 'updatePointer') {
-          const { x, y, isDrawing } = fc.args as any;
-          this.onPointerUpdate(x, y, !!isDrawing);
+          const args = fc.args as any;
+          // Validate input from LLM to prevent runtime errors or unexpected behavior
+          if (typeof args.x === 'number' && typeof args.y === 'number' && Number.isFinite(args.x) && Number.isFinite(args.y)) {
+            this.onPointerUpdate(args.x, args.y, !!args.isDrawing);
+          } else {
+            console.warn('Security: Invalid coordinates received from Gemini tool call:', args);
+          }
 
           // Send response back to acknowledge (required by protocol)
           // We assume success immediately to keep latency low
