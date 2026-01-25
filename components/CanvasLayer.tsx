@@ -163,7 +163,9 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       const isDrawingHands = isDrawingHandsRef.current;
 
       // Check if any hand is using eraser (derived logic inside loop)
-      const isErasing = currentPaths.some(p => p && p.color === 'eraser') || activeToolRef.current === 'eraser';
+      // ⚡ OPTIMIZATION: Only copy static canvas when ACTUALLY drawing with eraser.
+      // Previously, we copied the full 1080p canvas every frame even when just hovering with eraser tool.
+      const isErasing = currentPaths.some(p => p && p.color === 'eraser');
 
       ctx.clearRect(0, 0, width, height);
 
