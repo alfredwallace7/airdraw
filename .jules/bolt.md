@@ -42,3 +42,7 @@
 ## 2026-02-18 - Zero-Allocation Loop Data Passing
 **Learning:** Returning new objects and arrays from helper functions called inside high-frequency loops (e.g. 60fps MediaPipe callbacks) creates significant Garbage Collection pressure, leading to frame drops.
 **Action:** Use "Output Buffers" (mutable arrays/objects passed as arguments) for helper functions in hot paths, updating them in-place instead of returning new instances.
+
+## 2026-02-23 - Long Stroke DOM Optimization
+**Learning:** Even with "isDrawing" checks, continuous drawing gestures (long strokes) still trigger per-frame DOM queries if the logic conflates "drawing" with "clicking".
+**Action:** Explicitly check for stroke length or duration to distinguish between a "click" (short) and a "draw" (long), and disable DOM hit-testing during the latter.
