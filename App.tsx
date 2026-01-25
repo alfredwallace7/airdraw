@@ -425,7 +425,10 @@ const App: React.FC = () => {
       </div>
 
       {/* Instructions */}
-      <div className={`absolute bottom-6 right-6 max-w-xs bg-slate-900/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700 text-sm text-slate-300 z-40 transition-opacity duration-300 select-none ${showHelp ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div
+        aria-hidden={!showHelp}
+        className={`absolute bottom-6 right-6 max-w-xs bg-slate-900/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700 text-sm text-slate-300 z-40 transition-opacity duration-300 select-none ${showHelp ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      >
         <h3 className="flex items-center gap-2 font-semibold text-white mb-2">
           <Info size={16} /> How to Draw
         </h3>

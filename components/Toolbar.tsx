@@ -101,6 +101,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className={`p-3 rounded-xl transition-all ${activeMenu === 'colors' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Colors"
                     aria-label="Open color menu"
+                    aria-haspopup="true"
+                    aria-controls="toolbar-flyout"
+                    aria-expanded={activeMenu === 'colors'}
                 >
                     <Palette size={24} style={{ color: activeTool === 'pencil' ? brushColor : undefined }} />
                 </button>
@@ -112,6 +115,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className={`p-3 rounded-xl transition-all flex items-center justify-center ${activeMenu === 'sizes' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Brush Size ([ / ])"
                     aria-label="Open brush size menu"
+                    aria-haspopup="true"
+                    aria-controls="toolbar-flyout"
+                    aria-expanded={activeMenu === 'sizes'}
                 >
                     <Circle size={24} fill="currentColor" className="opacity-50" style={{ transform: `scale(${Math.min(1, Math.max(0.4, brushSize / 24))})` }} />
                 </button>
@@ -123,6 +129,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className={`p-3 rounded-xl transition-all ${activeMenu === 'opacity' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Camera Opacity"
                     aria-label="Open camera opacity menu"
+                    aria-haspopup="true"
+                    aria-controls="toolbar-flyout"
+                    aria-expanded={activeMenu === 'opacity'}
                 >
                     <Droplets size={24} />
                 </button>
@@ -136,6 +145,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className={`p-3 rounded-xl transition-all ${activeMenu === 'clear' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Clear Canvas"
                     aria-label="Open clear canvas menu"
+                    aria-haspopup="dialog"
+                    aria-controls="toolbar-flyout"
+                    aria-expanded={activeMenu === 'clear'}
                 >
                     <Trash2 size={24} />
                 </button>
@@ -155,7 +167,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
             {/* Flyout Menus */}
             {activeMenu && (
-                <div className="bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-700 shadow-2xl animate-in fade-in slide-in-from-left-4 duration-200">
+                <div
+                    id="toolbar-flyout"
+                    className="bg-slate-900/90 backdrop-blur-md p-3 rounded-2xl border border-slate-700 shadow-2xl animate-in fade-in slide-in-from-left-4 duration-200"
+                >
 
                     {/* Colors Flyout */}
                     {activeMenu === 'colors' && (
