@@ -46,11 +46,6 @@ export const calculateLayoutMetrics = (
     return { scaledW, scaledH, offsetX, offsetY };
 };
 
-export interface HandProcessingResult {
-    positions: (Point | null)[];
-    isDrawing: boolean[];
-}
-
 // Process multiple hands from MediaPipe results
 export const processMultipleHands = (
     landmarks: any[],
@@ -58,11 +53,12 @@ export const processMultipleHands = (
     layoutMetrics: LayoutMetrics | null,
     lastCursorPositions: { current: (Point | null)[] },
     gestureHistories: { current: boolean[][] },
-    GESTURE_HISTORY_SIZE: number
-): HandProcessingResult => {
+    GESTURE_HISTORY_SIZE: number,
+    // Output buffers - Mutated in place to reduce GC pressure
+    outPositions: (Point | null)[],
+    outIsDrawing: boolean[]
+): void => {
     const maxHands = 2;
-    const positions: (Point | null)[] = [null, null];
-    const isDrawing: boolean[] = [false, false];
 
     // Process each detected hand (up to 2)
     for (let handIndex = 0; handIndex < Math.min(landmarks.length, maxHands); handIndex++) {
@@ -124,17 +120,15 @@ export const processMultipleHands = (
         const newPos = { x: screenX, y: screenY };
         lastCursorPositions.current[handIndex] = newPos;
 
-        positions[handIndex] = newPos;
-        isDrawing[handIndex] = isDrawingGesture;
+        outPositions[handIndex] = newPos;
+        outIsDrawing[handIndex] = isDrawingGesture;
     }
 
     // Reset positions for missing hands
     for (let i = landmarks.length; i < maxHands; i++) {
         lastCursorPositions.current[i] = null;
         gestureHistories.current[i] = [];
-        positions[i] = null;
-        isDrawing[i] = false;
+        outPositions[i] = null;
+        outIsDrawing[i] = false;
     }
-
-    return { positions, isDrawing };
 };
