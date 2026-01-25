@@ -1,6 +1,6 @@
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from '@google/genai';
 import { MODEL_NAME, SYSTEM_INSTRUCTION } from '../constants';
-import { decode, decodeAudioData } from '../utils/encoding';
+import { decodeAudioData } from '../utils/encoding';
 
 // Define the tool for tracking
 const updatePointerTool: FunctionDeclaration = {
@@ -99,8 +99,13 @@ export class GeminiLiveService {
     if (message.toolCall) {
       for (const fc of message.toolCall.functionCalls) {
         if (fc.name === 'updatePointer') {
-          const { x, y, isDrawing } = fc.args as any;
-          this.onPointerUpdate(x, y, !!isDrawing);
+          const args = fc.args as any;
+          // Validate input from LLM to prevent runtime errors or unexpected behavior
+          if (typeof args.x === 'number' && typeof args.y === 'number' && Number.isFinite(args.x) && Number.isFinite(args.y)) {
+            this.onPointerUpdate(args.x, args.y, !!args.isDrawing);
+          } else {
+            console.warn('Security: Invalid coordinates received from Gemini tool call:', args);
+          }
 
           // Send response back to acknowledge (required by protocol)
           // We assume success immediately to keep latency low
@@ -119,8 +124,9 @@ export class GeminiLiveService {
     const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
     if (base64Audio && this.audioContext) {
       try {
+        // ⚡ OPTIMIZATION: Pass Base64 string directly to worker to avoid main-thread blocking
         const audioBuffer = await decodeAudioData(
-          decode(base64Audio),
+          base64Audio,
           this.audioContext,
           24000,
           1

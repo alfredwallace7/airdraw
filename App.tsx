@@ -5,7 +5,7 @@ import CanvasLayer from './components/CanvasLayer';
 import Toolbar, { COLORS, SIZES } from './components/Toolbar';
 import { DrawPath, Point, CameraQuality } from './types';
 import { Results } from '@mediapipe/hands';
-import { processMultipleHands } from './utils/handProcessor';
+import { processMultipleHands, calculateLayoutMetrics, LayoutMetrics, HandProcessingResult } from './utils/handProcessor';
 import { Settings, X as CloseIcon } from 'lucide-react';
 
 const CAMERA_QUALITIES: CameraQuality[] = [
@@ -44,10 +44,23 @@ const App: React.FC = () => {
     }
   }, [activeTool]);
 
+  const handleToggleHelp = useCallback(() => {
+    setShowHelp(prev => !prev);
+  }, []);
+
   const [videoOpacity, setVideoOpacity] = useState(0.25); // Default 25% opacity
 
   // --- Refs ---
   const videoRef = useRef<HTMLVideoElement>(null);
+  // ⚡ OPTIMIZATION: Cache video dimensions to avoid layout thrashing during frame processing
+  const videoDimensionsRef = useRef({ width: 0, height: 0 });
+  // ⚡ OPTIMIZATION: Memoize layout metrics to avoid recalculation per frame (60fps)
+  const layoutMetricsRef = useRef<LayoutMetrics | null>(null);
+  // ⚡ OPTIMIZATION: Reusable result object to avoid allocation per frame in hand processor
+  const handProcessingResultRef = useRef<HandProcessingResult>({
+    positions: [null, null],
+    isDrawing: [false, false]
+  });
   const handTrackingService = useRef<HandTrackingService | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -77,6 +90,11 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // ⚡ OPTIMIZATION: Update layout metrics when dimensions change, avoiding loop-invariant calculation
+  useEffect(() => {
+    layoutMetricsRef.current = calculateLayoutMetrics(dimensions, videoDimensionsRef.current);
+  }, [dimensions]);
+
   // Instructions State
   const [showHelp, setShowHelp] = useState(true);
 
@@ -97,14 +115,68 @@ const App: React.FC = () => {
   useEffect(() => { brushColorRef.current = brushColor; }, [brushColor]);
   useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
 
+  // Close Settings on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSettingsOpen) {
+        setIsSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSettingsOpen) return;
+
+      // Ignore if modifier keys are pressed (Ctrl, Alt, Meta) to avoid conflicting with browser shortcuts
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+      const key = e.key.toLowerCase();
+
+      switch (key) {
+        case 'p':
+          setActiveTool('pencil');
+          break;
+        case 'e':
+          setActiveTool('eraser');
+          break;
+        case 'h':
+          handleToggleHelp();
+          break;
+        case '[': {
+          const currentIndex = SIZES.indexOf(brushSize);
+          if (currentIndex > 0) {
+            handleSizeChange(SIZES[currentIndex - 1]);
+          }
+          break;
+        }
+        case ']': {
+          const currentIndex = SIZES.indexOf(brushSize);
+          if (currentIndex < SIZES.length - 1) {
+            handleSizeChange(SIZES[currentIndex + 1]);
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen, brushSize, handleSizeChange, handleToggleHelp]);
+
   // Process MediaPipe Results
   const onResults = useCallback((results: Results) => {
     const dims = dimensionsRef.current;
     const isHelpVisible = showHelpRef.current;
 
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-      cursorPositionsRef.current = [null, null];
-      isDrawingHandsRef.current = [false, false];
+      cursorPositionsRef.current[0] = null;
+      cursorPositionsRef.current[1] = null;
+      isDrawingHandsRef.current[0] = false;
+      isDrawingHandsRef.current[1] = false;
 
       // Clear current paths if hands are lost during drawing?
       // Or just keep them suspended? Existing logic cleared tracking but not paths explicitly.
@@ -121,13 +193,16 @@ const App: React.FC = () => {
     }
 
     // Process all detected hands
-    const handResults = processMultipleHands(
+    // ⚡ OPTIMIZATION: Pass refs to be updated in-place to avoid GC pressure
+    processMultipleHands(
       results.multiHandLandmarks,
       dims,
-      videoRef,
+      layoutMetricsRef.current,
       lastCursorPositions,
       gestureHistories,
-      GESTURE_HISTORY_SIZE
+      GESTURE_HISTORY_SIZE,
+      cursorPositionsRef.current,
+      isDrawingHandsRef.current
     );
 
     // --- Drawing Logic Optimized (Moved from useEffect to reduce re-renders) ---
@@ -135,8 +210,8 @@ const App: React.FC = () => {
     let pathsUpdated = false;
 
     for (let i = 0; i < 2; i++) {
-        const isDrawing = handResults.isDrawing[i];
-        const pos = handResults.positions[i];
+        const isDrawing = isDrawingHandsRef.current[i];
+        const pos = cursorPositionsRef.current[i];
         const existingPath = newCurrentPaths[i];
 
         if (isDrawing && pos) {
@@ -167,24 +242,20 @@ const App: React.FC = () => {
     }
     // -------------------------------------------------------------------------
 
-    cursorPositionsRef.current = handResults.positions;
-    isDrawingHandsRef.current = handResults.isDrawing;
+    // cursorPositionsRef and isDrawingHandsRef are already updated in place
 
     // Update debug info every 10 frames
     if (frameCountRef.current % 10 === 0 && debugInfoRef.current) {
       const handCount = results.multiHandLandmarks.length;
-      const drawingCount = handResults.isDrawing.filter(d => d).length;
+      const drawingCount = isDrawingHandsRef.current.filter(d => d).length;
       debugInfoRef.current.textContent = `${handCount} hand${handCount !== 1 ? 's' : ''} | ${drawingCount} drawing`;
       debugInfoRef.current.style.display = 'block';
     }
     frameCountRef.current++;
 
     // Simple UI interaction for first hand only (to avoid conflicts)
-    const firstPos = handResults.positions[0];
+    const firstPos = cursorPositionsRef.current[0];
     if (firstPos) {
-      const element = document.elementFromPoint(firstPos.x, firstPos.y);
-      const isClickable = element?.getAttribute('data-clickable') === 'true';
-
       // Check if hovering over instructions
       const instructionsWidth = 320;
       const instructionsHeight = 200;
@@ -197,10 +268,16 @@ const App: React.FC = () => {
       }
 
       // UI interaction with first hand
-      if (isClickable && handResults.isDrawing[0] && !clickCooldown.current) {
-        (element as HTMLElement).click();
-        clickCooldown.current = true;
-        setTimeout(() => { clickCooldown.current = false; }, 500);
+      // ⚡ OPTIMIZATION: Only query DOM when actually clicking to avoid expensive Reflows on every frame
+      if (isDrawingHandsRef.current[0] && !clickCooldown.current) {
+        const element = document.elementFromPoint(firstPos.x, firstPos.y);
+        const isClickable = element?.getAttribute('data-clickable') === 'true';
+
+        if (isClickable) {
+          (element as HTMLElement).click();
+          clickCooldown.current = true;
+          setTimeout(() => { clickCooldown.current = false; }, 500);
+        }
       }
     }
 
@@ -256,10 +333,6 @@ const App: React.FC = () => {
     currentPathsRef.current = [null, null];
   }, []);
 
-  const handleToggleHelp = useCallback(() => {
-    setShowHelp(prev => !prev);
-  }, []);
-
   return (
     <div className="relative w-screen h-screen flex flex-col items-center justify-center bg-slate-900 overflow-hidden" ref={containerRef}>
 
@@ -269,6 +342,11 @@ const App: React.FC = () => {
         playsInline
         className={`absolute inset-0 w-full h-full object-cover transform scale-x-[-1] transition-opacity duration-300 ${isCameraActive ? 'block' : 'hidden'}`}
         style={{ opacity: videoOpacity }}
+        onLoadedMetadata={(e) => {
+          const video = e.currentTarget;
+          videoDimensionsRef.current = { width: video.videoWidth, height: video.videoHeight };
+          layoutMetricsRef.current = calculateLayoutMetrics(dimensions, videoDimensionsRef.current);
+        }}
       />
 
       {/* Drawing Overlay */}
@@ -310,6 +388,7 @@ const App: React.FC = () => {
               onClick={() => setIsSettingsOpen(true)}
               className="p-1 text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-slate-800/50 cursor-pointer"
               title="Settings (Mouse Only)"
+              aria-label="Open settings"
             >
               <Settings size={14} />
             </button>
@@ -339,6 +418,7 @@ const App: React.FC = () => {
           onClick={clearCanvas}
           className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
           title="Clear Canvas"
+          aria-label="Clear canvas"
         >
           <Trash2 size={20} />
         </button>
@@ -354,7 +434,10 @@ const App: React.FC = () => {
       </div>
 
       {/* Instructions */}
-      <div className={`absolute bottom-6 right-6 max-w-xs bg-slate-900/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700 text-sm text-slate-300 z-40 transition-opacity duration-300 select-none ${showHelp ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div
+        aria-hidden={!showHelp}
+        className={`absolute bottom-6 right-6 max-w-xs bg-slate-900/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700 text-sm text-slate-300 z-40 transition-opacity duration-300 select-none ${showHelp ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      >
         <h3 className="flex items-center gap-2 font-semibold text-white mb-2">
           <Info size={16} /> How to Draw
         </h3>
@@ -369,16 +452,26 @@ const App: React.FC = () => {
 
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsSettingsOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-800">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <h2 id="settings-title" className="text-xl font-bold text-white flex items-center gap-2">
                 <Settings className="text-sky-400" size={24} /> Settings
               </h2>
-              <button 
+              <button
                 onClick={() => setIsSettingsOpen(false)}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                aria-label="Close settings"
               >
                 <CloseIcon size={20} />
               </button>

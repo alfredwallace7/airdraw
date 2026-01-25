@@ -5,15 +5,15 @@ export class HandTrackingService {
   private hands: Hands;
   private camera: Camera | null = null;
   private onResults: (results: Results) => void;
-  private processCanvas: HTMLCanvasElement;
-  private processCtx: CanvasRenderingContext2D;
 
   constructor(onResults: (results: Results) => void) {
     this.onResults = onResults;
 
     this.hands = new Hands({
       locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        const url = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
+        console.log('MediaPipe loading:', file, 'from', url);
+        return url;
       },
     });
 
@@ -25,12 +25,6 @@ export class HandTrackingService {
     });
 
     this.hands.onResults(this.onResults);
-
-    // Create offscreen canvas for downscaled processing
-    this.processCanvas = document.createElement("canvas");
-    this.processCanvas.width = 640;
-    this.processCanvas.height = 360; // 16:9 aspect ratio
-    this.processCtx = this.processCanvas.getContext("2d")!;
   }
 
   start(
@@ -42,15 +36,23 @@ export class HandTrackingService {
 
     this.camera = new Camera(videoElement, {
       onFrame: async () => {
-        // Draw high-res video to low-res canvas for processing
-        this.processCtx.drawImage(
-          videoElement,
-          0,
-          0,
-          this.processCanvas.width,
-          this.processCanvas.height,
-        );
-        await this.hands.send({ image: this.processCanvas });
+        // ⚡ OPTIMIZATION: Use createImageBitmap for async off-thread downscaling
+        // This avoids blocking the main thread with synchronous canvas drawImage calls
+        let bitmap: ImageBitmap | undefined;
+        try {
+          bitmap = await createImageBitmap(videoElement, {
+            resizeWidth: 640,
+            resizeHeight: 360,
+          });
+          // Cast to any because @mediapipe/hands types don't explicitly include ImageBitmap despite runtime support
+          await this.hands.send({ image: bitmap as any });
+        } catch (e) {
+          console.error('Frame processing error:', e);
+        } finally {
+          if (bitmap) {
+            bitmap.close();
+          }
+        }
       },
       width: width,
       height: height,

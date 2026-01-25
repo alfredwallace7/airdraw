@@ -27,7 +27,7 @@ export function decode(base64: string) {
 }
 
 export async function decodeAudioData(
-  data: Uint8Array,
+  data: Uint8Array | string,
   ctx: AudioContext,
   sampleRate: number,
   numChannels: number,
@@ -56,10 +56,14 @@ export async function decodeAudioData(
       reject(err);
     };
 
-    // Send data to worker. We transfer the buffer to avoid copying.
-    // WARNING: This operation detaches 'data.buffer', making the input 'data' array unusable in the main thread.
-    // Ensure 'data' is not reused after calling this function.
-    const buffer = data.buffer;
-    worker.postMessage({ data: buffer, numChannels }, [buffer]);
+    // Send data to worker.
+    if (typeof data === 'string') {
+      worker.postMessage({ data, numChannels });
+    } else {
+      // We transfer the buffer to avoid copying.
+      // WARNING: This operation detaches 'data.buffer', making the input 'data' array unusable in the main thread.
+      const buffer = data.buffer;
+      worker.postMessage({ data: buffer, numChannels }, [buffer]);
+    }
   });
 }

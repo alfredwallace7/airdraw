@@ -50,9 +50,17 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameIdRef = useRef<number>(0);
 
-  // ⚡ OPTIMIZATION: Track rendered state to enable incremental drawing
-  const renderedPathsCount = useRef(0);
-  const prevDimensions = useRef({ width: 0, height: 0 });
+  // Refs to decouple animation loop from React renders
+  const pathsRef = useRef(paths);
+  const activeToolRef = useRef(activeTool);
+
+  useEffect(() => {
+    pathsRef.current = paths;
+  }, [paths]);
+
+  useEffect(() => {
+    activeToolRef.current = activeTool;
+  }, [activeTool]);
 
   // ⚡ OPTIMIZATION: Cache calculated strokes for completed paths
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
@@ -96,36 +104,40 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
     }
   };
 
+  // ⚡ OPTIMIZATION: Track rendering state for incremental updates
+  const renderedPathsCount = useRef(0);
+  const prevWidth = useRef(width);
+  const prevHeight = useRef(height);
+
   // 1. Static Layer: Draws completed paths
-  // ⚡ OPTIMIZATION: Incremental drawing
-  // Instead of clearing and redrawing everything (O(N)) when a new path is added,
-  // we only draw the new path (O(1)) unless a full redraw is required (resize/clear).
+  // ⚡ OPTIMIZATION: Use incremental drawing to avoid O(N) redraws on every new stroke
   useEffect(() => {
     const canvas = staticCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Detect if we need a full redraw
-    const isResize = width !== prevDimensions.current.width || height !== prevDimensions.current.height;
+    const isResize = width !== prevWidth.current || height !== prevHeight.current;
+    // If paths array shrank (undo/clear), we must full redraw
     const isReset = paths.length < renderedPathsCount.current;
-    const needsFullRedraw = isResize || isReset;
 
-    let startFrom = renderedPathsCount.current;
-
-    if (needsFullRedraw) {
+    // Check for full redraw condition
+    if (isResize || isReset) {
+      // Full Redraw
       ctx.clearRect(0, 0, width, height);
-      startFrom = 0;
-    }
+      paths.forEach(path => renderPath(ctx, path, true));
 
-    // Draw only new paths (or all if full redraw)
-    for (let i = startFrom; i < paths.length; i++) {
-      renderPath(ctx, paths[i], true);
+      // Update tracking refs
+      renderedPathsCount.current = paths.length;
+      prevWidth.current = width;
+      prevHeight.current = height;
+    } else {
+      // Incremental Draw: Only draw new paths
+      for (let i = renderedPathsCount.current; i < paths.length; i++) {
+        renderPath(ctx, paths[i], true);
+      }
+      renderedPathsCount.current = paths.length;
     }
-
-    // Update refs
-    renderedPathsCount.current = paths.length;
-    prevDimensions.current = { width, height };
 
   }, [paths, width, height]);
 
@@ -151,7 +163,9 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       const isDrawingHands = isDrawingHandsRef.current;
 
       // Check if any hand is using eraser (derived logic inside loop)
-      const isErasing = currentPaths.some(p => p && p.color === 'eraser') || activeTool === 'eraser';
+      // ⚡ OPTIMIZATION: Only copy static canvas when ACTUALLY drawing with eraser.
+      // Previously, we copied the full 1080p canvas every frame even when just hovering with eraser tool.
+      const isErasing = currentPaths.some(p => p && p.color === 'eraser');
 
       ctx.clearRect(0, 0, width, height);
 
@@ -162,7 +176,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
           ctx.drawImage(staticCanvasRef.current, 0, 0);
         } else {
           // Fallback
-          paths.forEach(path => renderPath(ctx, path, true));
+          pathsRef.current.forEach(path => renderPath(ctx, path, true));
         }
       }
 
@@ -178,7 +192,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         if (cursorPos) {
           const isDrawing = isDrawingHands[handIndex];
           const colors = CURSOR_COLORS[handIndex] || CURSOR_COLORS[0];
-          const isEraserPreview = activeTool === 'eraser' && !isDrawing;
+          const isEraserPreview = activeToolRef.current === 'eraser' && !isDrawing;
 
           ctx.beginPath();
           ctx.arc(cursorPos.x, cursorPos.y, isEraserPreview ? 12 : 8, 0, Math.PI * 2);
@@ -241,7 +255,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         cancelAnimationFrame(animationFrameIdRef.current);
       }
     };
-  }, [width, height, activeTool, paths]); // Re-start loop if these change
+  }, [width, height]); // Only restart loop if dimensions change
 
   return (
     <>
