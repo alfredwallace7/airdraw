@@ -15,6 +15,8 @@
 **Action:** Lift invariant calculations and DOM reads out of loops, especially in high-frequency functions like `requestAnimationFrame` callbacks or MediaPipe `onResults`.
 
 ## 2026-01-26 - Incremental Canvas Drawing
+**Learning:** Redrawing the entire canvas history (O(N)) on every new stroke completion causes performance degradation as the session length increases.
+**Action:** Implement incremental drawing by tracking rendered state. Only draw new paths (O(1)) unless a full invalidation (resize/undo) occurs.
 **Learning:** Redrawing the entire canvas history on every new stroke (O(N)) becomes a bottleneck as the number of paths grows. By tracking the number of already-rendered paths, we can switch to an incremental draw strategy (O(1)) for the common "append" case.
 **Action:** When managing a canvas with an append-only data model, use a ref to track rendered state and only draw the delta, falling back to full redraws only for clears, resets, or resizes.
 
