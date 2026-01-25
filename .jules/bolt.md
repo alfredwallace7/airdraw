@@ -29,3 +29,7 @@
 ## 2026-02-05 - Conditional DOM Hit-Testing
 **Learning:** Calling `document.elementFromPoint` in a high-frequency loop (60fps) triggers synchronous layout/reflow, consuming significant frame budget.
 **Action:** Guard expensive DOM queries with state checks (e.g. `isDrawing`) so they only run when interaction is actually occurring, not during passive hovering.
+
+## 2026-02-06 - Conditional Canvas Copy
+**Learning:** Copying a large canvas (e.g. 1920x1080) for "preview" effects (like X-ray eraser) every frame consumes massive bandwidth (120MP/s @ 60fps) and should be avoided for passive states like hovering.
+**Action:** Guard expensive canvas composition operations so they only run when the user is actively modifying the canvas (drawing), not just selecting a tool.
