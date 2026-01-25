@@ -168,8 +168,10 @@ const App: React.FC = () => {
     const isHelpVisible = showHelpRef.current;
 
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-      cursorPositionsRef.current = [null, null];
-      isDrawingHandsRef.current = [false, false];
+      cursorPositionsRef.current[0] = null;
+      cursorPositionsRef.current[1] = null;
+      isDrawingHandsRef.current[0] = false;
+      isDrawingHandsRef.current[1] = false;
 
       // Clear current paths if hands are lost during drawing?
       // Or just keep them suspended? Existing logic cleared tracking but not paths explicitly.
@@ -186,13 +188,16 @@ const App: React.FC = () => {
     }
 
     // Process all detected hands
-    const handResults = processMultipleHands(
+    // ⚡ OPTIMIZATION: Pass refs to be updated in-place to avoid GC pressure
+    processMultipleHands(
       results.multiHandLandmarks,
       dims,
       layoutMetricsRef.current,
       lastCursorPositions,
       gestureHistories,
-      GESTURE_HISTORY_SIZE
+      GESTURE_HISTORY_SIZE,
+      cursorPositionsRef.current,
+      isDrawingHandsRef.current
     );
 
     // --- Drawing Logic Optimized (Moved from useEffect to reduce re-renders) ---
@@ -200,8 +205,8 @@ const App: React.FC = () => {
     let pathsUpdated = false;
 
     for (let i = 0; i < 2; i++) {
-        const isDrawing = handResults.isDrawing[i];
-        const pos = handResults.positions[i];
+        const isDrawing = isDrawingHandsRef.current[i];
+        const pos = cursorPositionsRef.current[i];
         const existingPath = newCurrentPaths[i];
 
         if (isDrawing && pos) {
@@ -232,20 +237,19 @@ const App: React.FC = () => {
     }
     // -------------------------------------------------------------------------
 
-    cursorPositionsRef.current = handResults.positions;
-    isDrawingHandsRef.current = handResults.isDrawing;
+    // cursorPositionsRef and isDrawingHandsRef are already updated in place
 
     // Update debug info every 10 frames
     if (frameCountRef.current % 10 === 0 && debugInfoRef.current) {
       const handCount = results.multiHandLandmarks.length;
-      const drawingCount = handResults.isDrawing.filter(d => d).length;
+      const drawingCount = isDrawingHandsRef.current.filter(d => d).length;
       debugInfoRef.current.textContent = `${handCount} hand${handCount !== 1 ? 's' : ''} | ${drawingCount} drawing`;
       debugInfoRef.current.style.display = 'block';
     }
     frameCountRef.current++;
 
     // Simple UI interaction for first hand only (to avoid conflicts)
-    const firstPos = handResults.positions[0];
+    const firstPos = cursorPositionsRef.current[0];
     if (firstPos) {
       // Check if hovering over instructions
       const instructionsWidth = 320;
@@ -260,7 +264,7 @@ const App: React.FC = () => {
 
       // UI interaction with first hand
       // ⚡ OPTIMIZATION: Only query DOM when actually clicking to avoid expensive Reflows on every frame
-      if (handResults.isDrawing[0] && !clickCooldown.current) {
+      if (isDrawingHandsRef.current[0] && !clickCooldown.current) {
         const element = document.elementFromPoint(firstPos.x, firstPos.y);
         const isClickable = element?.getAttribute('data-clickable') === 'true';
 
