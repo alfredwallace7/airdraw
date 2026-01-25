@@ -11,7 +11,9 @@ export class HandTrackingService {
 
     this.hands = new Hands({
       locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        const url = `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
+        console.log('MediaPipe loading:', file, 'from', url);
+        return url;
       },
     });
 
