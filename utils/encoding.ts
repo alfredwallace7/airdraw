@@ -26,6 +26,17 @@ export function decode(base64: string) {
   return bytes;
 }
 
+// ⚡ OPTIMIZATION: Reuse worker instance to avoid expensive creation/termination overhead
+let worker: Worker | null = null;
+interface PendingRequest {
+  resolve: (value: AudioBuffer) => void;
+  reject: (reason?: any) => void;
+  ctx: AudioContext;
+  sampleRate: number;
+  numChannels: number;
+}
+const pendingRequests: PendingRequest[] = [];
+
 export async function decodeAudioData(
   data: Uint8Array | string,
   ctx: AudioContext,
@@ -33,28 +44,48 @@ export async function decodeAudioData(
   numChannels: number,
 ): Promise<AudioBuffer> {
   return new Promise((resolve, reject) => {
-    // Note: Creating a new worker for every call has some overhead, but it ensures
-    // we don't block the main thread with heavy decoding.
-    // For very high frequency calls, a persistent worker pool would be better.
-    const worker = new AudioWorker();
+    if (!worker) {
+      worker = new AudioWorker();
 
-    worker.onmessage = (e: MessageEvent) => {
-      const { channels } = e.data;
-      const frameCount = channels[0].length;
-      const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+      worker.onmessage = (e: MessageEvent) => {
+        const req = pendingRequests.shift();
+        if (!req) return;
 
-      for (let i = 0; i < numChannels; i++) {
-        buffer.copyToChannel(channels[i], i);
-      }
+        const { resolve: reqResolve, reject: reqReject, ctx: reqCtx, sampleRate: reqSampleRate, numChannels: reqNumChannels } = req;
+        const { channels } = e.data;
 
-      worker.terminate();
-      resolve(buffer);
-    };
+        try {
+          const frameCount = channels[0].length;
+          const buffer = reqCtx.createBuffer(reqNumChannels, frameCount, reqSampleRate);
 
-    worker.onerror = (err) => {
-      worker.terminate();
-      reject(err);
-    };
+          for (let i = 0; i < reqNumChannels; i++) {
+            buffer.copyToChannel(channels[i], i);
+          }
+
+          reqResolve(buffer);
+        } catch (error) {
+          reqReject(error);
+        }
+      };
+
+      worker.onerror = (err) => {
+        console.error("AudioWorker error:", err);
+        // Reject all pending requests as the worker state is compromised
+        while (pendingRequests.length > 0) {
+          const req = pendingRequests.shift();
+          if (req) {
+            req.reject(err);
+          }
+        }
+        // Restart worker on error to ensure fresh state
+        if (worker) {
+          worker.terminate();
+          worker = null;
+        }
+      };
+    }
+
+    pendingRequests.push({ resolve, reject, ctx, sampleRate, numChannels });
 
     // Send data to worker.
     if (typeof data === 'string') {
