@@ -76,12 +76,18 @@ export const processMultipleHands = (
             gestureHistories.current[handIndex] = [];
         }
 
-        gestureHistories.current[handIndex].push(rawDrawingGesture);
-        if (gestureHistories.current[handIndex].length > GESTURE_HISTORY_SIZE) {
-            gestureHistories.current[handIndex].shift();
+        const history = gestureHistories.current[handIndex];
+        history.push(rawDrawingGesture);
+        if (history.length > GESTURE_HISTORY_SIZE) {
+            history.shift();
         }
 
-        const drawingFrames = gestureHistories.current[handIndex].filter(g => g).length;
+        // ⚡ OPTIMIZATION: Avoid array allocation from .filter() in hot loop
+        let drawingFrames = 0;
+        for (let i = 0; i < history.length; i++) {
+            if (history[i]) drawingFrames++;
+        }
+
         const isDrawingGesture = drawingFrames >= Math.ceil(GESTURE_HISTORY_SIZE / 2);
 
         // Map coordinates to screen
