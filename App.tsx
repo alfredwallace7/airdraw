@@ -5,7 +5,7 @@ import CanvasLayer from './components/CanvasLayer';
 import Toolbar, { COLORS, SIZES } from './components/Toolbar';
 import { DrawPath, Point, CameraQuality } from './types';
 import { Results } from '@mediapipe/hands';
-import { processMultipleHands, calculateLayoutMetrics, LayoutMetrics } from './utils/handProcessor';
+import { processMultipleHands, calculateLayoutMetrics, LayoutMetrics, HandProcessingResult } from './utils/handProcessor';
 import { Settings, X as CloseIcon } from 'lucide-react';
 
 const CAMERA_QUALITIES: CameraQuality[] = [
@@ -56,6 +56,11 @@ const App: React.FC = () => {
   const videoDimensionsRef = useRef({ width: 0, height: 0 });
   // ⚡ OPTIMIZATION: Memoize layout metrics to avoid recalculation per frame (60fps)
   const layoutMetricsRef = useRef<LayoutMetrics | null>(null);
+  // ⚡ OPTIMIZATION: Reusable result object to avoid allocation per frame in hand processor
+  const handProcessingResultRef = useRef<HandProcessingResult>({
+    positions: [null, null],
+    isDrawing: [false, false]
+  });
   const handTrackingService = useRef<HandTrackingService | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
@@ -192,7 +197,8 @@ const App: React.FC = () => {
       layoutMetricsRef.current,
       lastCursorPositions,
       gestureHistories,
-      GESTURE_HISTORY_SIZE
+      GESTURE_HISTORY_SIZE,
+      handProcessingResultRef.current
     );
 
     // --- Drawing Logic Optimized (Moved from useEffect to reduce re-renders) ---

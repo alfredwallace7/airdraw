@@ -29,3 +29,7 @@
 ## 2026-02-05 - Conditional DOM Hit-Testing
 **Learning:** Calling `document.elementFromPoint` in a high-frequency loop (60fps) triggers synchronous layout/reflow, consuming significant frame budget.
 **Action:** Guard expensive DOM queries with state checks (e.g. `isDrawing`) so they only run when interaction is actually occurring, not during passive hovering.
+
+## 2026-02-06 - GC Reduction in Hot Loops
+**Learning:** In high-frequency loops like MediaPipe `onResults` (30-60fps), repeatedly allocating small objects and arrays (e.g., return values, `.filter()` results) creates significant garbage collection pressure, leading to frame drops.
+**Action:** Use mutable result objects (passed via Refs) and simple `for` loops instead of array methods (`filter`, `map`) in critical animation paths to reuse memory and maintain stable frame rates.
