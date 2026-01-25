@@ -110,7 +110,12 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const prevHeight = useRef(height);
 
   // 1. Static Layer: Draws completed paths
-  // ⚡ OPTIMIZATION: Use incremental drawing to avoid O(N) redraws on every new stroke
+  // ⚡ OPTIMIZATION: Use incremental drawing to avoid O(N) redraws on every new stroke.
+  // Instead of clearing and redrawing all paths (O(N)) when a new path is added,
+  // we only draw the newly added paths (O(1)) on top of the existing canvas.
+  // Full redraws are only performed when:
+  // 1. The canvas is resized (invalidation)
+  // 2. The paths history is modified non-additively (e.g. undo/clear)
   useEffect(() => {
     const canvas = staticCanvasRef.current;
     if (!canvas) return;
@@ -123,7 +128,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
     // Check for full redraw condition
     if (isResize || isReset) {
-      // Full Redraw
+      // Full Redraw (O(N))
+      // Required when canvas is invalidated or history changes retroactively
       ctx.clearRect(0, 0, width, height);
       paths.forEach(path => renderPath(ctx, path, true));
 
@@ -132,7 +138,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       prevWidth.current = width;
       prevHeight.current = height;
     } else {
-      // Incremental Draw: Only draw new paths
+      // Incremental Draw (O(1) amortized)
+      // Only draw paths that have been added since the last render
       for (let i = renderedPathsCount.current; i < paths.length; i++) {
         renderPath(ctx, paths[i], true);
       }
