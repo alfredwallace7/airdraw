@@ -223,7 +223,22 @@ const App: React.FC = () => {
             } else {
                 // Extend existing path - Mutating for performance (avoid O(N) copy)
                 // This is safe because we immediately trigger a state update with a new array reference
-                existingPath.points.push(pos);
+
+                // ⚡ OPTIMIZATION: Filter redundant points to prevent O(N) stroke calculation explosion
+                // perfect-freehand performance degrades linearly with point count.
+                // We only add points if they moved at least 2 pixels.
+                const lastPoint = existingPath.points[existingPath.points.length - 1];
+                const MIN_DISTANCE_SQ = 4; // 2px squared
+
+                if (lastPoint) {
+                    const dx = pos.x - lastPoint.x;
+                    const dy = pos.y - lastPoint.y;
+                    if (dx * dx + dy * dy > MIN_DISTANCE_SQ) {
+                        existingPath.points.push(pos);
+                    }
+                } else {
+                    existingPath.points.push(pos);
+                }
             }
             pathsUpdated = true;
         } else if (existingPath) {
