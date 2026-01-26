@@ -454,9 +454,19 @@ const App: React.FC = () => {
         aria-hidden={!showHelp}
         className={`absolute bottom-6 right-6 max-w-xs bg-slate-900/60 backdrop-blur-sm p-4 rounded-xl border border-slate-700 text-sm text-slate-300 z-40 transition-opacity duration-300 select-none ${showHelp ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       >
-        <h3 className="flex items-center gap-2 font-semibold text-white mb-2">
-          <Info size={16} /> How to Draw
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="flex items-center gap-2 font-semibold text-white">
+            <Info size={16} /> How to Draw
+          </h3>
+          <button
+            onClick={() => setShowHelp(false)}
+            className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
+            aria-label="Close help instructions"
+            tabIndex={showHelp ? 0 : -1}
+          >
+            <CloseIcon size={16} />
+          </button>
+        </div>
         <ul className="space-y-2 list-disc pl-4 text-xs">
           <li>Hold your hand(s) up to the camera.</li>
           <li><strong>Open Hand:</strong> Moves the cursor (Hover).</li>
