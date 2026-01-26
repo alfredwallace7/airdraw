@@ -46,3 +46,7 @@
 ## 2026-02-23 - Long Stroke DOM Optimization
 **Learning:** Even with "isDrawing" checks, continuous drawing gestures (long strokes) still trigger per-frame DOM queries if the logic conflates "drawing" with "clicking".
 **Action:** Explicitly check for stroke length or duration to distinguish between a "click" (short) and a "draw" (long), and disable DOM hit-testing during the latter.
+
+## 2026-02-28 - Rising Edge Input Optimization
+**Learning:** Continuous checks for interactions (like `elementFromPoint`) in high-frequency loops cause layout thrashing even when no interaction occurs.
+**Action:** Use rising edge detection (comparing prev vs current state) to trigger expensive checks only on state transitions (e.g. "mousedown"), avoiding continuous polling.
