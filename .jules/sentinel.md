@@ -12,3 +12,8 @@
 **Vulnerability:** Loading libraries from `cdn.jsdelivr.net` without a specific version number defaults to the latest version, exposing the app to potential supply chain attacks or breaking changes.
 **Learning:** Runtime dependency loading via `locateFile` or similar mechanisms bypasses `package.json` version constraints. Explicitly pinning versions in URLs is crucial for reproducibility and security.
 **Prevention:** Updated `services/mediaPipe.ts` to pin `@mediapipe/hands` to version `0.4.1675469240` in the CDN URL.
+
+## 2024-05-26 - [MediaPipe Input Validation]
+**Vulnerability:** Accessing MediaPipe landmark arrays without checking for existence or length could cause main-thread crashes if the library returned malformed or partial data.
+**Learning:** External libraries, even trusted ones like MediaPipe, can behave unexpectedly. Client-side crash resilience requires validating all external data structures before access.
+**Prevention:** Added explicit null and length checks (`< 21`) for `handLandmarks` in `utils/handProcessor.ts` before accessing specific indices.

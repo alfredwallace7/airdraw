@@ -63,6 +63,13 @@ export const processMultipleHands = (
     // Process each detected hand (up to 2)
     for (let handIndex = 0; handIndex < Math.min(landmarks.length, maxHands); handIndex++) {
         const handLandmarks = landmarks[handIndex];
+
+        // SAFETY: Ensure landmarks exist and have enough points (21 for hands)
+        if (!handLandmarks || handLandmarks.length < 21) {
+            console.warn(`Sentinel: Invalid hand landmarks at index ${handIndex}`);
+            continue;
+        }
+
         const indexTip = handLandmarks[8];
 
         // Gesture detection
