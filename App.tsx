@@ -187,6 +187,9 @@ const App: React.FC = () => {
       return;
     }
 
+    // Capture previous drawing state for Hand 0 (Rising edge detection)
+    const wasDrawingHand0 = isDrawingHandsRef.current[0];
+
     // Process all detected hands
     // ⚡ OPTIMIZATION: Pass refs to be updated in-place to avoid GC pressure
     processMultipleHands(
@@ -263,12 +266,11 @@ const App: React.FC = () => {
       }
 
       // UI interaction with first hand
-      // Check if we are in the middle of a long drawing stroke
-      const currentPath = currentPathsRef.current[0];
-      const isLongStroke = currentPath && currentPath.points.length > 10;
+      // ⚡ OPTIMIZATION: Only query DOM on the "mousedown" event (rising edge of pinch)
+      // This avoids running expensive elementFromPoint checks (layout thrashing) on every frame of a stroke
+      const isDrawingHand0 = isDrawingHandsRef.current[0];
 
-      // ⚡ OPTIMIZATION: Only query DOM when actually clicking to avoid expensive Reflows on every frame
-      if (isDrawingHandsRef.current[0] && !clickCooldown.current && !isLongStroke) {
+      if (isDrawingHand0 && !wasDrawingHand0 && !clickCooldown.current) {
         const element = document.elementFromPoint(firstPos.x, firstPos.y);
         const isClickable = element?.getAttribute('data-clickable') === 'true';
 
