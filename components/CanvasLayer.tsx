@@ -206,11 +206,11 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
           if (isEraserPreview) {
             // Eraser preview: Clear the center to show "transparency"
-            ctx.save();
+            // ⚡ OPTIMIZATION: Avoid save/restore (expensive stack op) for simple state toggle
             ctx.globalCompositeOperation = 'destination-out';
             ctx.fillStyle = '#000000';
             ctx.fill();
-            ctx.restore();
+            ctx.globalCompositeOperation = 'source-over';
 
             // Draw outline
             ctx.strokeStyle = '#ffffff';
