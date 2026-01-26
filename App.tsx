@@ -204,18 +204,19 @@ const App: React.FC = () => {
     );
 
     // --- Drawing Logic Optimized (Moved from useEffect to reduce re-renders) ---
-    const newCurrentPaths = [...currentPathsRef.current];
-    let pathsUpdated = false;
+    // ⚡ OPTIMIZATION: Avoid array allocation in hot loop (60fps)
+    // Mutate currentPathsRef.current in place. CanvasLayer reads this ref in its animation loop.
+    const currentPaths = currentPathsRef.current;
 
     for (let i = 0; i < 2; i++) {
         const isDrawing = isDrawingHandsRef.current[i];
         const pos = cursorPositionsRef.current[i];
-        const existingPath = newCurrentPaths[i];
+        const existingPath = currentPaths[i];
 
         if (isDrawing && pos) {
             if (!existingPath) {
                 // Start new path
-                newCurrentPaths[i] = {
+                currentPaths[i] = {
                     points: [pos],
                     color: activeToolRef.current === 'eraser' ? 'eraser' : brushColorRef.current,
                     width: brushSizeRef.current
@@ -240,18 +241,12 @@ const App: React.FC = () => {
                     existingPath.points.push(pos);
                 }
             }
-            pathsUpdated = true;
         } else if (existingPath) {
              // Stop drawing -> Commit
              // We must copy the path here to ensure the committed path is immutable
              setPaths(prev => [...prev, { ...existingPath, points: [...existingPath.points] }]);
-             newCurrentPaths[i] = null;
-             pathsUpdated = true;
+             currentPaths[i] = null;
         }
-    }
-
-    if (pathsUpdated) {
-        currentPathsRef.current = newCurrentPaths;
     }
     // -------------------------------------------------------------------------
 

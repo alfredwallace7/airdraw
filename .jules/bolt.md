@@ -50,3 +50,7 @@
 ## 2026-02-28 - Rising Edge Input Optimization
 **Learning:** Continuous checks for interactions (like `elementFromPoint`) in high-frequency loops cause layout thrashing even when no interaction occurs.
 **Action:** Use rising edge detection (comparing prev vs current state) to trigger expensive checks only on state transitions (e.g. "mousedown"), avoiding continuous polling.
+
+## 2026-03-01 - Canvas State Stack Optimization
+**Learning:** `ctx.save()` and `ctx.restore()` are relatively expensive operations because they save/restore the entire context state stack. For simple local changes (e.g., toggling `globalCompositeOperation`), manual resetting is significantly faster.
+**Action:** In high-frequency render loops, prefer manually reverting context properties over `save/restore` blocks when the number of changed properties is small.
