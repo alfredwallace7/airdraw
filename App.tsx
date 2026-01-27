@@ -214,10 +214,14 @@ const App: React.FC = () => {
         const existingPath = currentPaths[i];
 
         if (isDrawing && pos) {
+            // ⚡ OPTIMIZATION: Clone the point object since `pos` is now a reusable mutable object
+            // from the tracking loop. We need immutable snapshots for the drawing history.
+            const pointSnapshot = { x: pos.x, y: pos.y };
+
             if (!existingPath) {
                 // Start new path
                 currentPaths[i] = {
-                    points: [pos],
+                    points: [pointSnapshot],
                     color: activeToolRef.current === 'eraser' ? 'eraser' : brushColorRef.current,
                     width: brushSizeRef.current
                 };
@@ -235,10 +239,10 @@ const App: React.FC = () => {
                     const dx = pos.x - lastPoint.x;
                     const dy = pos.y - lastPoint.y;
                     if (dx * dx + dy * dy > MIN_DISTANCE_SQ) {
-                        existingPath.points.push(pos);
+                        existingPath.points.push(pointSnapshot);
                     }
                 } else {
-                    existingPath.points.push(pos);
+                    existingPath.points.push(pointSnapshot);
                 }
             }
         } else if (existingPath) {

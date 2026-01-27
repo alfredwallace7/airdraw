@@ -128,12 +128,17 @@ export const processMultipleHands = (
 
             screenX = lerp(lastPos.x, screenX, smoothingFactor);
             screenY = lerp(lastPos.y, screenY, smoothingFactor);
+
+            // ⚡ OPTIMIZATION: Update object in-place to avoid GC pressure
+            lastPos.x = screenX;
+            lastPos.y = screenY;
+            outPositions[handIndex] = lastPos;
+        } else {
+            const newPos = { x: screenX, y: screenY };
+            lastCursorPositions.current[handIndex] = newPos;
+            outPositions[handIndex] = newPos;
         }
 
-        const newPos = { x: screenX, y: screenY };
-        lastCursorPositions.current[handIndex] = newPos;
-
-        outPositions[handIndex] = newPos;
         outIsDrawing[handIndex] = isDrawingGesture;
     }
 
