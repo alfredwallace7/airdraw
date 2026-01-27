@@ -14,20 +14,31 @@ interface CanvasLayerProps {
 
 // Helper to draw a stroke directly to the canvas context
 // ⚡ OPTIMIZATION: Avoids O(N) string allocation and Path2D parsing by using direct context calls
+// ⚡ OPTIMIZATION: Loop unrolling avoids modulo operator overhead
 const drawStroke = (ctx: CanvasRenderingContext2D, stroke: number[][]) => {
   ctx.beginPath();
-  if (stroke.length < 2) return;
+  const len = stroke.length;
+  if (len < 2) return;
 
   const [firstX, firstY] = stroke[0];
   ctx.moveTo(firstX, firstY);
 
-  for (let i = 0; i < stroke.length; i++) {
+  const lenMinus1 = len - 1;
+  for (let i = 0; i < lenMinus1; i++) {
     const [x0, y0] = stroke[i];
-    const [x1, y1] = stroke[(i + 1) % stroke.length];
+    const [x1, y1] = stroke[i + 1];
     const midX = (x0 + x1) / 2;
     const midY = (y0 + y1) / 2;
     ctx.quadraticCurveTo(x0, y0, midX, midY);
   }
+
+  // Wrap around
+  const [x0, y0] = stroke[lenMinus1];
+  const [x1, y1] = stroke[0];
+  const midX = (x0 + x1) / 2;
+  const midY = (y0 + y1) / 2;
+  ctx.quadraticCurveTo(x0, y0, midX, midY);
+
   ctx.closePath();
 };
 
