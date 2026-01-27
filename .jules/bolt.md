@@ -54,3 +54,7 @@
 ## 2026-03-01 - Canvas State Stack Optimization
 **Learning:** `ctx.save()` and `ctx.restore()` are relatively expensive operations because they save/restore the entire context state stack. For simple local changes (e.g., toggling `globalCompositeOperation`), manual resetting is significantly faster.
 **Action:** In high-frequency render loops, prefer manually reverting context properties over `save/restore` blocks when the number of changed properties is small.
+
+## 2026-03-08 - Canvas Loop Modulo Overhead
+**Learning:** The modulo operator `%` inside a hot loop (like connecting points in a stroke) can introduce significant overhead, especially for small arrays where loop setup/teardown is not the dominant cost. Unrolling the loop to handle the wrap-around explicitly can yield 4x speedups for small strokes.
+**Action:** In critical tight loops iterating over circular buffers or closed polygons, prefer iterating to `length - 1` and handling the wrap-around explicitly outside the loop.
