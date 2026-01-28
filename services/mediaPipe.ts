@@ -27,7 +27,7 @@ export class HandTrackingService {
     this.hands.onResults(this.onResults);
   }
 
-  start(
+  async start(
     videoElement: HTMLVideoElement,
     width: number = 1280,
     height: number = 720,
@@ -58,7 +58,7 @@ export class HandTrackingService {
       height: height,
     });
 
-    this.camera.start();
+    await this.camera.start();
   }
 
   stop() {
