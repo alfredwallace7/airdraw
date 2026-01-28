@@ -46,8 +46,8 @@ export class HandTrackingService {
           });
           // Cast to any because @mediapipe/hands types don't explicitly include ImageBitmap despite runtime support
           await this.hands.send({ image: bitmap as any });
-        } catch (e) {
-          console.error('Frame processing error:', e);
+        } catch (_e) {
+          console.error('Frame processing error encountered');
         } finally {
           if (bitmap) {
             bitmap.close();

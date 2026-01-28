@@ -17,3 +17,8 @@
 **Vulnerability:** Accessing MediaPipe landmark arrays without checking for existence or length could cause main-thread crashes if the library returned malformed or partial data.
 **Learning:** External libraries, even trusted ones like MediaPipe, can behave unexpectedly. Client-side crash resilience requires validating all external data structures before access.
 **Prevention:** Added explicit null and length checks (`< 21`) for `handLandmarks` in `utils/handProcessor.ts` before accessing specific indices.
+
+## 2024-05-27 - [Information Leakage via Error Messages]
+**Vulnerability:** Logging full error objects or exposing raw error messages to the UI can leak sensitive information (API keys, stack traces) or internal implementation details.
+**Learning:** Default error objects in client-side SDKs (like `google-genai`) may include the full request context (including auth headers) in the exception, which risks exposure if logged to console or sent to monitoring.
+**Prevention:** Sanitized error handling in `GeminiLiveService` and `HandTrackingService` to log generic messages ("Connection failed", "Frame processing error") and display user-friendly warnings instead of raw exceptions.
