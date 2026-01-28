@@ -69,8 +69,8 @@ export class GeminiLiveService {
             this.onDisconnect();
             this.cleanup();
           },
-          onerror: (e: ErrorEvent) => {
-            console.error('Gemini Live Error', e);
+          onerror: (_e: ErrorEvent) => {
+            console.error('Gemini Live Error encountered');
             this.onError('Connection error occurred.');
             this.cleanup();
           },
@@ -87,9 +87,9 @@ export class GeminiLiveService {
         content: [{ text: "Start tracking immediately." }]
       });
 
-    } catch (error: any) {
-      console.error("Connection failed", error);
-      this.onError(error.message || "Failed to connect to Gemini");
+    } catch (_error: any) {
+      console.error("Gemini Live connection failed");
+      this.onError("Unable to establish connection to AI service.");
       this.cleanup();
     }
   }
@@ -104,7 +104,7 @@ export class GeminiLiveService {
           if (typeof args.x === 'number' && typeof args.y === 'number' && Number.isFinite(args.x) && Number.isFinite(args.y)) {
             this.onPointerUpdate(args.x, args.y, !!args.isDrawing);
           } else {
-            console.warn('Security: Invalid coordinates received from Gemini tool call:', args);
+            console.warn('Security: Invalid coordinates received from Gemini tool call');
           }
 
           // Send response back to acknowledge (required by protocol)
