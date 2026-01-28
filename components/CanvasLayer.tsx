@@ -21,13 +21,21 @@ const drawStroke = (ctx: CanvasRenderingContext2D, stroke: number[][]) => {
   const [firstX, firstY] = stroke[0];
   ctx.moveTo(firstX, firstY);
 
-  for (let i = 0; i < stroke.length; i++) {
+  const len = stroke.length;
+  for (let i = 0; i < len - 1; i++) {
     const [x0, y0] = stroke[i];
-    const [x1, y1] = stroke[(i + 1) % stroke.length];
+    const [x1, y1] = stroke[i + 1];
     const midX = (x0 + x1) / 2;
     const midY = (y0 + y1) / 2;
     ctx.quadraticCurveTo(x0, y0, midX, midY);
   }
+
+  // Wrap around
+  const [x0, y0] = stroke[len - 1];
+  const [x1, y1] = stroke[0];
+  const midX = (x0 + x1) / 2;
+  const midY = (y0 + y1) / 2;
+  ctx.quadraticCurveTo(x0, y0, midX, midY);
   ctx.closePath();
 };
 
