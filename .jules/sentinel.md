@@ -17,3 +17,8 @@
 **Vulnerability:** Accessing MediaPipe landmark arrays without checking for existence or length could cause main-thread crashes if the library returned malformed or partial data.
 **Learning:** External libraries, even trusted ones like MediaPipe, can behave unexpectedly. Client-side crash resilience requires validating all external data structures before access.
 **Prevention:** Added explicit null and length checks (`< 21`) for `handLandmarks` in `utils/handProcessor.ts` before accessing specific indices.
+
+## 2024-05-27 - [Error Message Sanitization]
+**Vulnerability:** Propagating raw `error.message` to the UI in `GeminiLiveService` could leak sensitive details (like API keys or internal paths) if the underlying library throws a detailed error.
+**Learning:** Never trust external library error messages to be safe for user display.
+**Prevention:** Replaced raw error message propagation with a generic "Failed to connect" message in `services/geminiLive.ts`, while keeping detailed logs for developers.
