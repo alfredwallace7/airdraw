@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Palette, Trash2, Camera as CameraIcon, Info } from 'lucide-react';
+import { Palette, Trash2, Camera as CameraIcon, Info, Loader2 } from 'lucide-react';
 import { HandTrackingService } from './services/mediaPipe';
 import CanvasLayer from './components/CanvasLayer';
 import Toolbar, { COLORS, SIZES } from './components/Toolbar';
@@ -17,6 +17,7 @@ const CAMERA_QUALITIES: CameraQuality[] = [
 const App: React.FC = () => {
   // --- State ---
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [cameraQuality, setCameraQuality] = useState<CameraQuality>(CAMERA_QUALITIES[1]); // Default 720p
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -297,9 +298,18 @@ const App: React.FC = () => {
   // Initialize Camera & Tracking
   const startCamera = useCallback(async () => {
     if (videoRef.current && !handTrackingService.current) {
-      handTrackingService.current = new HandTrackingService(onResults);
-      handTrackingService.current.start(videoRef.current, cameraQuality.width, cameraQuality.height);
-      setIsCameraActive(true);
+      setIsLoading(true);
+      try {
+        handTrackingService.current = new HandTrackingService(onResults);
+        await handTrackingService.current.start(videoRef.current, cameraQuality.width, cameraQuality.height);
+        setIsCameraActive(true);
+      } catch (error) {
+        console.error('Failed to start camera:', error);
+        // Clean up if start fails
+        handTrackingService.current = null;
+      } finally {
+        setIsLoading(false);
+      }
     }
   }, [onResults, cameraQuality]);
 
@@ -409,10 +419,11 @@ const App: React.FC = () => {
         {!isCameraActive ? (
           <button
             onClick={startCamera}
-            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg hover:shadow-slate-500/25 border border-slate-600"
+            disabled={isLoading}
+            className={`flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg hover:shadow-slate-500/25 border border-slate-600 ${isLoading ? 'opacity-75 cursor-wait' : ''}`}
           >
-            <CameraIcon size={18} />
-            Enable Camera
+            {isLoading ? <Loader2 className="animate-spin" size={18} /> : <CameraIcon size={18} />}
+            {isLoading ? 'Starting...' : 'Enable Camera'}
           </button>
         ) : (
           <button
