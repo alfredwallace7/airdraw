@@ -89,7 +89,8 @@ export class GeminiLiveService {
 
     } catch (error: any) {
       console.error("Connection failed", error);
-      this.onError(error.message || "Failed to connect to Gemini");
+      // Security: Do not leak raw error messages to UI as they may contain sensitive info
+      this.onError("Failed to connect to Gemini. Please check your connection.");
       this.cleanup();
     }
   }
