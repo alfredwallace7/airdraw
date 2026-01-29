@@ -16,18 +16,29 @@ interface CanvasLayerProps {
 // ⚡ OPTIMIZATION: Avoids O(N) string allocation and Path2D parsing by using direct context calls
 const drawStroke = (ctx: CanvasRenderingContext2D, stroke: number[][]) => {
   ctx.beginPath();
-  if (stroke.length < 2) return;
+  const len = stroke.length;
+  if (len < 2) return;
 
   const [firstX, firstY] = stroke[0];
   ctx.moveTo(firstX, firstY);
 
-  for (let i = 0; i < stroke.length; i++) {
+  // ⚡ OPTIMIZATION: Unroll loop to avoid modulo operator overhead in hot path
+  // Iterate up to the second to last point
+  for (let i = 0; i < len - 1; i++) {
     const [x0, y0] = stroke[i];
-    const [x1, y1] = stroke[(i + 1) % stroke.length];
-    const midX = (x0 + x1) / 2;
-    const midY = (y0 + y1) / 2;
+    const [x1, y1] = stroke[i + 1];
+    const midX = (x0 + x1) * 0.5;
+    const midY = (y0 + y1) * 0.5;
     ctx.quadraticCurveTo(x0, y0, midX, midY);
   }
+
+  // Handle the last point wrapping to the first
+  const [xLast, yLast] = stroke[len - 1];
+  const [xFirst, yFirst] = stroke[0];
+  const midX = (xLast + xFirst) * 0.5;
+  const midY = (yLast + yFirst) * 0.5;
+  ctx.quadraticCurveTo(xLast, yLast, midX, midY);
+
   ctx.closePath();
 };
 
