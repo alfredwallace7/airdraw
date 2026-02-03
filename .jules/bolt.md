@@ -58,3 +58,7 @@
 ## 2026-03-04 - Modulo in Hot Loops
 **Learning:** In tight rendering loops (like drawing strokes), the modulo operator (`%`) and division can introduce measurable overhead. Unrolling the loop to handle wrap-around manually and replacing division with multiplication (`* 0.5`) improved execution time by ~15% in micro-benchmarks.
 **Action:** For performance-critical loops that run thousands of times per frame, prefer unrolling and multiplication over modulo and division.
+
+## 2026-03-05 - Destructuring in Hot Loops
+**Learning:** In tight rendering loops (executing millions of times/sec across all points), array destructuring (e.g. `const [x, y] = pt`) can be significantly slower (~87% in benchmarks) than direct index access (e.g. `pt[0]`) due to iterator protocol overhead and optimization bailouts in V8.
+**Action:** Replace array destructuring with direct index access in performance-critical loops (like canvas stroke rendering).
