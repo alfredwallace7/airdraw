@@ -19,25 +19,41 @@ const drawStroke = (ctx: CanvasRenderingContext2D, stroke: number[][]) => {
   const len = stroke.length;
   if (len < 2) return;
 
-  const [firstX, firstY] = stroke[0];
+  // ⚡ OPTIMIZATION: Avoid array destructuring in hot path to reduce iterator overhead
+  const p0 = stroke[0];
+  const firstX = p0[0];
+  const firstY = p0[1];
+
   ctx.moveTo(firstX, firstY);
 
-  // ⚡ OPTIMIZATION: Unroll loop to avoid modulo operator overhead in hot path
+  // Initialize loop variables
+  let x0 = firstX;
+  let y0 = firstY;
+
+  // ⚡ OPTIMIZATION: Unroll loop and cache points to minimize array access
   // Iterate up to the second to last point
   for (let i = 0; i < len - 1; i++) {
-    const [x0, y0] = stroke[i];
-    const [x1, y1] = stroke[i + 1];
+    // x0, y0 are already set from previous iteration or initialization
+
+    // Fetch next point
+    const p1 = stroke[i + 1];
+    const x1 = p1[0];
+    const y1 = p1[1];
+
     const midX = (x0 + x1) * 0.5;
     const midY = (y0 + y1) * 0.5;
     ctx.quadraticCurveTo(x0, y0, midX, midY);
+
+    // Shift next point to current for next iteration
+    x0 = x1;
+    y0 = y1;
   }
 
   // Handle the last point wrapping to the first
-  const [xLast, yLast] = stroke[len - 1];
-  const [xFirst, yFirst] = stroke[0];
-  const midX = (xLast + xFirst) * 0.5;
-  const midY = (yLast + yFirst) * 0.5;
-  ctx.quadraticCurveTo(xLast, yLast, midX, midY);
+  // x0, y0 now hold the last point coordinates
+  const midX = (x0 + firstX) * 0.5;
+  const midY = (y0 + firstY) * 0.5;
+  ctx.quadraticCurveTo(x0, y0, midX, midY);
 
   ctx.closePath();
 };
