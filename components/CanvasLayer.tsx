@@ -60,6 +60,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const staticCanvasRef = useRef<HTMLCanvasElement>(null);
   const activeCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameIdRef = useRef<number>(0);
+  const prevIsErasingRef = useRef(false);
 
   // Refs to decouple animation loop from React renders
   const pathsRef = useRef(paths);
@@ -77,6 +78,11 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
   const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
 
+  // ⚡ OPTIMIZATION: Cache calculated strokes for ACTIVE paths
+  // This avoids recalculating perfect-freehand geometry (O(N)) when the path hasn't changed (length check)
+  // between render frames (e.g. 60fps render vs 30fps input)
+  const activeStrokeCache = useRef(new WeakMap<DrawPath, { length: number; stroke: number[][] }>());
+
   // Helper to draw a path using perfect-freehand
   const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath, useCache: boolean = false) => {
     if (path.points.length < 2) return;
@@ -85,6 +91,12 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
     if (useCache) {
       stroke = strokeCache.current.get(path);
+    } else {
+      // Check active cache
+      const cached = activeStrokeCache.current.get(path);
+      if (cached && cached.length === path.points.length) {
+        stroke = cached.stroke;
+      }
     }
 
     if (!stroke) {
@@ -98,6 +110,9 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
       if (useCache) {
         strokeCache.current.set(path, stroke);
+      } else {
+        // Cache active stroke with length for invalidation
+        activeStrokeCache.current.set(path, { length: path.points.length, stroke });
       }
     }
 
@@ -258,8 +273,10 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       });
 
       // Update static layer visibility imperatively
-      if (staticCanvasRef.current) {
+      // ⚡ OPTIMIZATION: Only touch DOM when state changes to avoid style recalculation overhead
+      if (staticCanvasRef.current && prevIsErasingRef.current !== isErasing) {
         staticCanvasRef.current.style.opacity = isErasing ? '0' : '1';
+        prevIsErasingRef.current = isErasing;
       }
 
       animationFrameIdRef.current = requestAnimationFrame(render);

@@ -58,3 +58,11 @@
 ## 2026-03-04 - Modulo in Hot Loops
 **Learning:** In tight rendering loops (like drawing strokes), the modulo operator (`%`) and division can introduce measurable overhead. Unrolling the loop to handle wrap-around manually and replacing division with multiplication (`* 0.5`) improved execution time by ~15% in micro-benchmarks.
 **Action:** For performance-critical loops that run thousands of times per frame, prefer unrolling and multiplication over modulo and division.
+
+## 2026-03-05 - Active Stroke Caching
+**Learning:** `perfect-freehand`'s `getStroke` is an O(N) operation. In a detached render loop (60fps) driven by separate input events (~30fps MediaPipe), blindly recalculating strokes every frame wastes significant CPU when the input data hasn't changed.
+**Action:** Cache active strokes in a `WeakMap` keyed by the path object, using `points.length` as the cache invalidation trigger. This enables O(1) reuse of expensive geometry during idle or interpolated frames.
+
+## 2026-03-05 - Loop-Invariant DOM Updates
+**Learning:** Assigning values to DOM properties (e.g., `style.opacity`) inside a high-frequency `requestAnimationFrame` loop triggers style recalculation checks in the browser engine, even if the value is identical.
+**Action:** Use a "previous state" Ref to guard DOM updates in animation loops, ensuring we only write to the DOM when the logical state actually changes.
