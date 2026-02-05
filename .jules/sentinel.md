@@ -17,3 +17,8 @@
 **Vulnerability:** Accessing MediaPipe landmark arrays without checking for existence or length could cause main-thread crashes if the library returned malformed or partial data.
 **Learning:** External libraries, even trusted ones like MediaPipe, can behave unexpectedly. Client-side crash resilience requires validating all external data structures before access.
 **Prevention:** Added explicit null and length checks (`< 21`) for `handLandmarks` in `utils/handProcessor.ts` before accessing specific indices.
+
+## 2026-02-05 - [Pinned CDN Dependencies]
+**Vulnerability:** Import map entries in `index.html` were using semver ranges (e.g., `^1.30.0`), which resolve to the latest version at runtime, exposing the application to supply chain risks and potential breakage from upstream updates.
+**Learning:** Production applications should pin all external dependencies to exact versions to ensure immutability and prevent unexpected changes in the runtime environment.
+**Prevention:** Updated `index.html` to pin `@google/genai`, `lucide-react`, `react`, and `react-dom` to their specific resolved versions.
