@@ -119,6 +119,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   const renderedPathsCount = useRef(0);
   const prevWidth = useRef(width);
   const prevHeight = useRef(height);
+  const prevIsErasingRef = useRef(false);
 
   // 1. Static Layer: Draws completed paths
   // ⚡ OPTIMIZATION: Use incremental drawing to avoid O(N) redraws on every new stroke.
@@ -258,8 +259,9 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       });
 
       // Update static layer visibility imperatively
-      if (staticCanvasRef.current) {
+      if (staticCanvasRef.current && prevIsErasingRef.current !== isErasing) {
         staticCanvasRef.current.style.opacity = isErasing ? '0' : '1';
+        prevIsErasingRef.current = isErasing;
       }
 
       animationFrameIdRef.current = requestAnimationFrame(render);
