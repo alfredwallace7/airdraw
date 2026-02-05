@@ -77,6 +77,10 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
   const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
 
+  // ⚡ OPTIMIZATION: Cache active strokes to prevent recalculation when input doesn't change
+  // If the render loop runs faster than input updates (or input is filtered), we reuse the previous frame's geometry.
+  const activeStrokeCache = useRef(new WeakMap<DrawPath, { stroke: number[][], pointsLength: number }>());
+
   // Helper to draw a path using perfect-freehand
   const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath, useCache: boolean = false) => {
     if (path.points.length < 2) return;
@@ -85,6 +89,12 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
     if (useCache) {
       stroke = strokeCache.current.get(path);
+    } else {
+      // Check active cache
+      const cached = activeStrokeCache.current.get(path);
+      if (cached && cached.pointsLength === path.points.length) {
+        stroke = cached.stroke;
+      }
     }
 
     if (!stroke) {
@@ -98,6 +108,8 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
       if (useCache) {
         strokeCache.current.set(path, stroke);
+      } else {
+        activeStrokeCache.current.set(path, { stroke, pointsLength: path.points.length });
       }
     }
 
