@@ -75,16 +75,18 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
 
   // ⚡ OPTIMIZATION: Cache calculated strokes for completed paths
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
-  const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
+  // We also cache active paths and invalidate if points length changes
+  const strokeCache = useRef(new WeakMap<DrawPath, { stroke: number[][], pointsLength: number }>());
 
   // Helper to draw a path using perfect-freehand
-  const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath, useCache: boolean = false) => {
+  const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath) => {
     if (path.points.length < 2) return;
 
     let stroke: number[][] | undefined;
 
-    if (useCache) {
-      stroke = strokeCache.current.get(path);
+    const cached = strokeCache.current.get(path);
+    if (cached && cached.pointsLength === path.points.length) {
+      stroke = cached.stroke;
     }
 
     if (!stroke) {
@@ -96,9 +98,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
         simulatePressure: true,
       });
 
-      if (useCache) {
-        strokeCache.current.set(path, stroke);
-      }
+      strokeCache.current.set(path, { stroke, pointsLength: path.points.length });
     }
 
     // ⚡ OPTIMIZATION: Use direct context calls instead of Path2D
@@ -142,7 +142,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       // Full Redraw (O(N))
       // Required when canvas is invalidated or history changes retroactively
       ctx.clearRect(0, 0, width, height);
-      paths.forEach(path => renderPath(ctx, path, true));
+      paths.forEach(path => renderPath(ctx, path));
 
       // Update tracking refs
       renderedPathsCount.current = paths.length;
@@ -152,7 +152,7 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       // Incremental Draw (O(1) amortized)
       // Only draw paths that have been added since the last render
       for (let i = renderedPathsCount.current; i < paths.length; i++) {
-        renderPath(ctx, paths[i], true);
+        renderPath(ctx, paths[i]);
       }
       renderedPathsCount.current = paths.length;
     }
@@ -194,14 +194,14 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
           ctx.drawImage(staticCanvasRef.current, 0, 0);
         } else {
           // Fallback
-          pathsRef.current.forEach(path => renderPath(ctx, path, true));
+          pathsRef.current.forEach(path => renderPath(ctx, path));
         }
       }
 
       // Draw current active paths for all hands
       currentPaths.forEach((currentPath) => {
         if (currentPath) {
-          renderPath(ctx, currentPath, false);
+          renderPath(ctx, currentPath);
         }
       });
 
