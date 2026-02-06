@@ -48,6 +48,71 @@ const CURSOR_COLORS = [
   { hover: '#a3e635', drawing: '#fb923c' }, // Hand 2: Lime / Orange
 ];
 
+// ⚡ OPTIMIZATION: Cache cursor sprites to avoid per-frame vector rasterization.
+// Blitting a pre-rendered canvas (drawImage) is significantly faster than repeated
+// beginPath/arc/stroke/fill calls, especially with context state changes.
+const cursorCache: Record<string, HTMLCanvasElement> = {};
+
+const getCursorSprite = (
+  color: string,
+  type: 'hover' | 'drawing' | 'eraser_preview'
+): HTMLCanvasElement => {
+  const cacheKey = `${type}-${color}`;
+  if (cursorCache[cacheKey]) return cursorCache[cacheKey];
+
+  const canvas = document.createElement('canvas');
+  // Size needs to cover the drawing. 32x32 covers the 12px radius + line width comfortably.
+  const size = 32;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  const cx = size / 2;
+  const cy = size / 2;
+
+  if (type === 'eraser_preview') {
+    // 1. White Outline
+    ctx.beginPath();
+    ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 2. Inner Red Dashed
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ff0000';
+    ctx.setLineDash([2, 2]);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else {
+    // Normal Cursor
+    const radius = 8;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+
+    // Crosshair
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy);
+    ctx.lineTo(cx + 4, cy);
+    ctx.moveTo(cx, cy - 4);
+    ctx.lineTo(cx, cy + 4);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  cursorCache[cacheKey] = canvas;
+  return canvas;
+};
+
 const CanvasLayer: React.FC<CanvasLayerProps> = ({
   paths,
   currentPathsRef,
@@ -212,48 +277,14 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
           const colors = CURSOR_COLORS[handIndex] || CURSOR_COLORS[0];
           const isEraserPreview = activeToolRef.current === 'eraser' && !isDrawing;
 
-          ctx.beginPath();
-          ctx.arc(cursorPos.x, cursorPos.y, isEraserPreview ? 12 : 8, 0, Math.PI * 2);
+          // ⚡ OPTIMIZATION: Use cached sprite for cursors instead of per-frame vector drawing
+          const spriteType = isEraserPreview ? 'eraser_preview' : (isDrawing ? 'drawing' : 'hover');
+          const spriteColor = isEraserPreview ? '#000000' : (isDrawing ? colors.drawing : colors.hover);
+          const sprite = getCursorSprite(spriteColor, spriteType);
 
-          if (isEraserPreview) {
-            // Eraser preview: Clear the center to show "transparency"
-            // ⚡ OPTIMIZATION: Avoid save/restore (expensive stack op) for simple state toggle
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillStyle = '#000000';
-            ctx.fill();
-            ctx.globalCompositeOperation = 'source-over';
-
-            // Draw outline
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Inner dashed line
-            ctx.beginPath();
-            ctx.arc(cursorPos.x, cursorPos.y, 10, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ff0000'; // Red for eraser
-            ctx.setLineDash([2, 2]);
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
-          } else {
-            ctx.fillStyle = isDrawing ? colors.drawing : colors.hover;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-
-            ctx.fill();
-            ctx.stroke();
-
-            // Target crosshair
-            ctx.beginPath();
-            ctx.moveTo(cursorPos.x - 4, cursorPos.y);
-            ctx.lineTo(cursorPos.x + 4, cursorPos.y);
-            ctx.moveTo(cursorPos.x, cursorPos.y - 4);
-            ctx.lineTo(cursorPos.x, cursorPos.y + 4);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
+          // Draw centered
+          const offset = sprite.width / 2;
+          ctx.drawImage(sprite, cursorPos.x - offset, cursorPos.y - offset);
         }
       });
 
