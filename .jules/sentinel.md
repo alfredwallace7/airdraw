@@ -17,3 +17,8 @@
 **Vulnerability:** Accessing MediaPipe landmark arrays without checking for existence or length could cause main-thread crashes if the library returned malformed or partial data.
 **Learning:** External libraries, even trusted ones like MediaPipe, can behave unexpectedly. Client-side crash resilience requires validating all external data structures before access.
 **Prevention:** Added explicit null and length checks (`< 21`) for `handLandmarks` in `utils/handProcessor.ts` before accessing specific indices.
+
+## 2024-05-30 - [.env Exclusion]
+**Vulnerability:** Sensitive `.env` files containing API keys were not excluded from version control.
+**Learning:** Standard Vite templates might not exclude `.env` by default (only `*.local`), but developers often use `.env` for local secrets.
+**Prevention:** Added `.env` and `.env.*` to `.gitignore` to enforce secret exclusion.
