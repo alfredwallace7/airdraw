@@ -51,6 +51,9 @@ const App: React.FC = () => {
   const [videoOpacity, setVideoOpacity] = useState(0.25); // Default 25% opacity
 
   // --- Refs ---
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const prevIsSettingsOpen = useRef(isSettingsOpen);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   // ⚡ OPTIMIZATION: Cache video dimensions to avoid layout thrashing during frame processing
   const videoDimensionsRef = useRef({ width: 0, height: 0 });
@@ -119,6 +122,14 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSettingsOpen]);
+
+  // Focus Restoration for Settings Modal
+  useEffect(() => {
+    if (prevIsSettingsOpen.current && !isSettingsOpen) {
+      settingsButtonRef.current?.focus();
+    }
+    prevIsSettingsOpen.current = isSettingsOpen;
   }, [isSettingsOpen]);
 
   // Keyboard Shortcuts
@@ -396,8 +407,9 @@ const App: React.FC = () => {
               <Palette size={18} /> AirDraw
             </span>
             <button
+              ref={settingsButtonRef}
               onClick={() => setIsSettingsOpen(true)}
-              className="p-1 text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-slate-800/50 cursor-pointer"
+              className="p-1 text-slate-500 hover:text-slate-300 transition-colors rounded-md hover:bg-slate-800/50 cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
               title="Settings (Mouse Only)"
               aria-label="Open settings"
             >
@@ -409,7 +421,7 @@ const App: React.FC = () => {
         {!isCameraActive ? (
           <button
             onClick={startCamera}
-            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg hover:shadow-slate-500/25 border border-slate-600"
+            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-slate-700 hover:bg-slate-600 text-white shadow-lg hover:shadow-slate-500/25 border border-slate-600 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
           >
             <CameraIcon size={18} />
             Enable Camera
@@ -417,7 +429,7 @@ const App: React.FC = () => {
         ) : (
           <button
             onClick={stopCamera}
-            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-lg"
+            className="flex items-center gap-2 px-6 py-2 rounded-full font-semibold transition-all bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-lg focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
           >
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             Stop Camera
@@ -427,7 +439,7 @@ const App: React.FC = () => {
         <button
           data-clickable="true"
           onClick={clearCanvas}
-          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
+          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
           title="Clear Canvas"
           aria-label="Clear canvas"
         >
@@ -455,7 +467,7 @@ const App: React.FC = () => {
           </h3>
           <button
             onClick={() => setShowHelp(false)}
-            className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors"
+            className="p-1 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
             aria-label="Close help instructions"
             tabIndex={showHelp ? 0 : -1}
           >
@@ -491,7 +503,7 @@ const App: React.FC = () => {
               </h2>
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
                 aria-label="Close settings"
               >
                 <CloseIcon size={20} />
@@ -509,7 +521,7 @@ const App: React.FC = () => {
                     <button
                       key={q.id}
                       onClick={() => handleQualityChange(q)}
-                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${
                         cameraQuality.id === q.id
                           ? 'bg-sky-500/10 border-sky-500/50 text-sky-400 ring-1 ring-sky-500/50'
                           : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
@@ -535,7 +547,7 @@ const App: React.FC = () => {
             <div className="p-6 bg-slate-950/50 flex justify-end">
               <button
                 onClick={() => setIsSettingsOpen(false)}
-                className="px-6 py-2 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-full shadow-lg shadow-sky-500/20 transition-all"
+                className="px-6 py-2 bg-sky-500 hover:bg-sky-400 text-white font-semibold rounded-full shadow-lg shadow-sky-500/20 transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
               >
                 Done
               </button>

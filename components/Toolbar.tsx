@@ -73,7 +73,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={() => { onToolChange('pencil'); setActiveMenu(null); }}
-                    className={`p-3 rounded-xl transition-all ${activeTool === 'pencil' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${activeTool === 'pencil' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Pencil (P)"
                     aria-label="Select pencil tool"
                 >
@@ -83,7 +83,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={() => { onToolChange('eraser'); setActiveMenu(null); }}
-                    className={`p-3 rounded-xl transition-all ${activeTool === 'eraser' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${activeTool === 'eraser' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Eraser (E)"
                     aria-label="Select eraser tool"
                 >
@@ -98,7 +98,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={() => toggleMenu('colors')}
-                    className={`p-3 rounded-xl transition-all ${activeMenu === 'colors' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${activeMenu === 'colors' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Colors"
                     aria-label="Open color menu"
                     aria-haspopup="true"
@@ -112,7 +112,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={() => toggleMenu('sizes')}
-                    className={`p-3 rounded-xl transition-all flex items-center justify-center ${activeMenu === 'sizes' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all flex items-center justify-center focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${activeMenu === 'sizes' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Brush Size ([ / ])"
                     aria-label="Open brush size menu"
                     aria-haspopup="true"
@@ -126,7 +126,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={() => toggleMenu('opacity')}
-                    className={`p-3 rounded-xl transition-all ${activeMenu === 'opacity' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${activeMenu === 'opacity' ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Camera Opacity"
                     aria-label="Open camera opacity menu"
                     aria-haspopup="true"
@@ -142,7 +142,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={() => toggleMenu('clear')}
-                    className={`p-3 rounded-xl transition-all ${activeMenu === 'clear' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${activeMenu === 'clear' ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Clear Canvas"
                     aria-label="Open clear canvas menu"
                     aria-haspopup="dialog"
@@ -156,7 +156,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     data-clickable="true"
                     onClick={onToggleHelp}
-                    className={`p-3 rounded-xl transition-all ${showHelp ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${showHelp ? 'bg-sky-500/20 text-sky-400' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
                     title="Toggle Help (H)"
                     aria-label="Toggle help instructions"
                 >
@@ -180,7 +180,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                     key={color}
                                     data-clickable="true"
                                     onClick={() => { onColorChange(color); setActiveMenu(null); }}
-                                    className={`w-14 h-14 rounded-xl border-2 transition-all ${brushColor === color ? 'border-white scale-105 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                                    className={`w-14 h-14 rounded-xl border-2 transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${brushColor === color ? 'border-white scale-105 shadow-lg' : 'border-transparent hover:scale-105'}`}
                                     style={{ backgroundColor: color }}
                                     title={COLOR_LABELS[color] || color}
                                     aria-label={`Select ${COLOR_LABELS[color] || color} color`}
@@ -197,7 +197,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                     key={size}
                                     data-clickable="true"
                                     onClick={() => { onSizeChange(size); setActiveMenu(null); }}
-                                    className={`p-2 rounded-full bg-slate-200 transition-all flex items-center justify-center ${brushSize === size ? 'bg-white scale-110 shadow-lg ring-2 ring-sky-500' : 'bg-slate-500 hover:bg-slate-400'}`}
+                                    className={`p-2 rounded-full bg-slate-200 transition-all flex items-center justify-center focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${brushSize === size ? 'bg-white scale-110 shadow-lg ring-2 ring-sky-500' : 'bg-slate-500 hover:bg-slate-400'}`}
                                     title={`${size}px`}
                                     aria-label={`Set brush size to ${size} pixels`}
                                 >
@@ -215,7 +215,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                     key={opacity}
                                     data-clickable="true"
                                     onClick={() => { onOpacityChange(opacity); setActiveMenu(null); }}
-                                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-all ${videoOpacity === opacity ? 'bg-sky-500 text-white shadow-lg' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                    className={`px-3 py-2 rounded-lg font-medium text-sm transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none ${videoOpacity === opacity ? 'bg-sky-500 text-white shadow-lg' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
                                     aria-label={`Set camera opacity to ${opacity * 100}%`}
                                 >
                                     {opacity * 100}%
@@ -233,7 +233,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                             <button
                                 data-clickable="true"
                                 onClick={() => { onClear(); setActiveMenu(null); }}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
                                 aria-label="Confirm clear canvas"
                             >
                                 <Check size={18} /> Yes
@@ -241,7 +241,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                             <button
                                 data-clickable="true"
                                 onClick={() => setActiveMenu(null)}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-medium transition-all"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl font-medium transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none"
                                 aria-label="Cancel clear canvas"
                             >
                                 <X size={18} /> No
