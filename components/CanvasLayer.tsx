@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, MutableRefObject } from 'react';
 import { getStroke } from 'perfect-freehand';
 import { DrawPath, Point } from '../types';
+import { getCursorSprite } from '../utils/cursorRenderer';
 
 interface CanvasLayerProps {
   paths: DrawPath[];
@@ -41,12 +42,6 @@ const drawStroke = (ctx: CanvasRenderingContext2D, stroke: number[][]) => {
 
   ctx.closePath();
 };
-
-// Cursor colors for each hand
-const CURSOR_COLORS = [
-  { hover: '#38bdf8', drawing: '#f472b6' }, // Hand 1: Sky blue / Pink
-  { hover: '#a3e635', drawing: '#fb923c' }, // Hand 2: Lime / Orange
-];
 
 const CanvasLayer: React.FC<CanvasLayerProps> = ({
   paths,
@@ -209,51 +204,13 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
       cursorPositions.forEach((cursorPos, handIndex) => {
         if (cursorPos) {
           const isDrawing = isDrawingHands[handIndex];
-          const colors = CURSOR_COLORS[handIndex] || CURSOR_COLORS[0];
           const isEraserPreview = activeToolRef.current === 'eraser' && !isDrawing;
 
-          ctx.beginPath();
-          ctx.arc(cursorPos.x, cursorPos.y, isEraserPreview ? 12 : 8, 0, Math.PI * 2);
+          // ⚡ OPTIMIZATION: Use cached sprite to avoid vector drawing overhead per frame
+          const sprite = getCursorSprite(handIndex, isDrawing, isEraserPreview);
 
-          if (isEraserPreview) {
-            // Eraser preview: Clear the center to show "transparency"
-            // ⚡ OPTIMIZATION: Avoid save/restore (expensive stack op) for simple state toggle
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillStyle = '#000000';
-            ctx.fill();
-            ctx.globalCompositeOperation = 'source-over';
-
-            // Draw outline
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Inner dashed line
-            ctx.beginPath();
-            ctx.arc(cursorPos.x, cursorPos.y, 10, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ff0000'; // Red for eraser
-            ctx.setLineDash([2, 2]);
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
-          } else {
-            ctx.fillStyle = isDrawing ? colors.drawing : colors.hover;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-
-            ctx.fill();
-            ctx.stroke();
-
-            // Target crosshair
-            ctx.beginPath();
-            ctx.moveTo(cursorPos.x - 4, cursorPos.y);
-            ctx.lineTo(cursorPos.x + 4, cursorPos.y);
-            ctx.moveTo(cursorPos.x, cursorPos.y - 4);
-            ctx.lineTo(cursorPos.x, cursorPos.y + 4);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
+          // Draw sprite centered at cursor position (sprite is 32x32, so offset by 16)
+          ctx.drawImage(sprite, cursorPos.x - 16, cursorPos.y - 16);
         }
       });
 
