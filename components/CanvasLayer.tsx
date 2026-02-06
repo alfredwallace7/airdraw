@@ -77,6 +77,66 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
   // This avoids recalculating perfect-freehand geometry (O(N)) on every static layer redraw
   const strokeCache = useRef(new WeakMap<DrawPath, number[][]>());
 
+  // ⚡ OPTIMIZATION: Cache cursor sprites to avoid repetitive vector drawing commands
+  const cursorCache = useRef(new Map<string, HTMLCanvasElement>());
+
+  const getCursorSprite = (type: 'hover' | 'drawing' | 'eraser', color: string): HTMLCanvasElement => {
+    const key = `${type}-${color}`;
+    if (cursorCache.current.has(key)) {
+      return cursorCache.current.get(key)!;
+    }
+
+    const isEraser = type === 'eraser';
+    const size = isEraser ? 32 : 24; // Eraser needs more space for rings
+    const center = size / 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    if (isEraser) {
+      // Draw rings only (hole is punched separately)
+      // Outline
+      ctx.beginPath();
+      ctx.arc(center, center, 12, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Inner dashed line
+      ctx.beginPath();
+      ctx.arc(center, center, 10, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ff0000'; // Red
+      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      // Normal cursor
+      const radius = 8;
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+
+      // Target crosshair
+      ctx.beginPath();
+      ctx.moveTo(center - 4, center);
+      ctx.lineTo(center + 4, center);
+      ctx.moveTo(center, center - 4);
+      ctx.lineTo(center, center + 4);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    cursorCache.current.set(key, canvas);
+    return canvas;
+  };
+
   // Helper to draw a path using perfect-freehand
   const renderPath = (ctx: CanvasRenderingContext2D, path: DrawPath, useCache: boolean = false) => {
     if (path.points.length < 2) return;
@@ -212,47 +272,29 @@ const CanvasLayer: React.FC<CanvasLayerProps> = ({
           const colors = CURSOR_COLORS[handIndex] || CURSOR_COLORS[0];
           const isEraserPreview = activeToolRef.current === 'eraser' && !isDrawing;
 
-          ctx.beginPath();
-          ctx.arc(cursorPos.x, cursorPos.y, isEraserPreview ? 12 : 8, 0, Math.PI * 2);
-
           if (isEraserPreview) {
-            // Eraser preview: Clear the center to show "transparency"
-            // ⚡ OPTIMIZATION: Avoid save/restore (expensive stack op) for simple state toggle
+            // Eraser preview
+            // 1. Punch hole (Vector operation needed for destination-out)
+            ctx.beginPath();
+            ctx.arc(cursorPos.x, cursorPos.y, 12, 0, Math.PI * 2);
             ctx.globalCompositeOperation = 'destination-out';
             ctx.fillStyle = '#000000';
             ctx.fill();
             ctx.globalCompositeOperation = 'source-over';
 
-            // Draw outline
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Inner dashed line
-            ctx.beginPath();
-            ctx.arc(cursorPos.x, cursorPos.y, 10, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ff0000'; // Red for eraser
-            ctx.setLineDash([2, 2]);
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
+            // 2. Draw Cached Rings Sprite
+            // ⚡ OPTIMIZATION: Use sprite for complex dashed lines
+            const sprite = getCursorSprite('eraser', 'none');
+            // Offset: center (16)
+            ctx.drawImage(sprite, cursorPos.x - 16, cursorPos.y - 16);
           } else {
-            ctx.fillStyle = isDrawing ? colors.drawing : colors.hover;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-
-            ctx.fill();
-            ctx.stroke();
-
-            // Target crosshair
-            ctx.beginPath();
-            ctx.moveTo(cursorPos.x - 4, cursorPos.y);
-            ctx.lineTo(cursorPos.x + 4, cursorPos.y);
-            ctx.moveTo(cursorPos.x, cursorPos.y - 4);
-            ctx.lineTo(cursorPos.x, cursorPos.y + 4);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            // Normal cursor
+            // ⚡ OPTIMIZATION: Use sprite for standard cursor
+            const type = isDrawing ? 'drawing' : 'hover';
+            const color = isDrawing ? colors.drawing : colors.hover;
+            const sprite = getCursorSprite(type, color);
+            // Offset: center (12)
+            ctx.drawImage(sprite, cursorPos.x - 12, cursorPos.y - 12);
           }
         }
       });
